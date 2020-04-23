@@ -3,7 +3,7 @@
 #include <cstring>
 #include <vector>
 #include <stack>
-#include <map>
+#include <unordered_map>
 #include <set>
 
 using namespace std;
@@ -11,12 +11,43 @@ using namespace std;
 #define INPUT_PATH "/data/test_data.txt"
 #define OUTPUT_PATH "/projects/student/result.txt"
 
-map<int, set<int>> graph;
+vector<vector<int>> graph;
+vector<vector<int>> _graph;
+vector<int> idxToId;
+unordered_map<int, int> idToIdx;
+vector<int> visit;
+vector<int> _visit;
 
-int tarjan(); // Find all strongly-connected components
+vector<int> path;
+vector<vector<int>> res;
+
+int dfs(); // DFS in graph
+int _dfs(); // DFS in _graph
+
 int buildGraph(); // Build graph based on the input file
-int writeResult(); // Write result to the output file
+int writeResult(vector<vector<int>> res); // Write result to the output file
+
+int buildGraph() {
+    char buffer[1024];
+    FILE *fp = fopen(INPUT_PATH, "rb");
+
+    if (fp == NULL) {
+        printf("Fail to open file!\n");
+        return -1;
+    }
+
+    while (!feof(fp)) {
+        fgets(buffer, 1024, fp);
+
+    }
+
+}
 
 int main(int argc, char* argv[]) {
+
+    buildGraph();
+
+
+
     return 0;
 }
