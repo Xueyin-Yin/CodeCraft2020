@@ -11,7 +11,7 @@
 
 using namespace std;
 
-#define TEST_PATH ".\\data\\test1.txt"
+#define TEST_PATH ".\\Problem\\test.txt"
 #define INPUT_PATH "/data/test_data.txt"
 #define OUTPUT_PATH "/projects/student/result.txt"
 
@@ -24,8 +24,8 @@ unordered_map<unsigned int, int> _visit;
 
 vector<unsigned int> ids;
 
-vector<int> path;
-vector<vector<int>> res;
+vector<unsigned int> path;
+vector<vector<unsigned int>> res;
 
 int dfs(); // DFS in graph
 int _dfs(); // DFS in _graph
@@ -151,17 +151,20 @@ void dfs(unsigned int current_node, unsigned int root_node)
         {
             continue;
         }
-        else if(visit1[next_node] == -2 && visit[next_node] == 0)
+        else if(_visit[next_node] == -2 && visit[next_node] == 0)
         {
             path.push_back(next_node);
             int path_length = path.size();
             if(path_length > 2)
             {
-                res[path_length - 3].push_back(path);
+                for (unsigned int node : path) {
+                    res[path_length - 3].push_back(node);
+                }
+
             }
             path.pop_back();
         }
-        else if(visit[next_node] == 1 || (visit1[next_node] != root_node && visit1[next_node] != -2))
+        else if(visit[next_node] == 1 || (_visit[next_node] != root_node && _visit[next_node] != -2))
         {
             continue;
         }
@@ -172,28 +175,28 @@ void dfs(unsigned int current_node, unsigned int root_node)
 
         visit[next_node] = 1;
         path.push_back(next_node);
-        dfs(graph, next_node, root_node, visit, visit1, res, path);
+        dfs(next_node, root_node);
         path.pop_back();
         visit[next_node] = 0;
     }
 }
 
-void dfs1(const unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigned int current_node, unsigned int root_node, int length)
+void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigned int current_node, unsigned int root_node, int length)
 {
-    for(int i=0 ; i<thisGraph[current_node].size() ; i++)
+    for(auto next_node : thisGraph[current_node])
     {
-        unsigned int next_node = thisGraph[current_node][i];
+        
         if(next_node < root_node || visit[next_node] == 1)
         {
             continue;
         }
 
-        visit1[next_node] = root_node;
+        _visit[next_node] = root_node;
         if(length == 3)
             continue;
 
         visit[next_node] = 1;
-        dfs1(thisGraph, next_node, root_node, visit, visit1, length + 1);
+        dfs1(thisGraph, next_node, root_node, length + 1);
         visit[next_node] = 0;
     }
 }
@@ -202,17 +205,17 @@ int main(int argc, char* argv[]) {
 
     buildGraph();
 
- //   debugGraph();
- //   debugIds();
-    for()
+    debugGraph();
+    debugIds();
+
+    for(unsigned int current_node : ids)
     {
-        unsigned int current_node;
         dfs1(graph, current_node, current_node, 1);
         dfs1(_graph, current_node, current_node, 1);
 
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
-            visit1[_graph[current_node][j]] = -2;
+            _visit[_graph[current_node][j]] = -2;
         }
 
         path.push_back(current_node);
@@ -223,6 +226,13 @@ int main(int argc, char* argv[]) {
         {
             _visit[_graph[current_node][j]] = current_node;
         }
+    }
+
+    for (auto iter : res) {
+        for (unsigned int i : iter) {
+            cout << i << " ";
+        } 
+        cout << endl;
     }
 
     return 0;
