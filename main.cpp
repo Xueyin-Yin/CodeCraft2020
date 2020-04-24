@@ -72,8 +72,7 @@ int buildGraph() {
     unsigned int src;
     unsigned int dest;
 
-    while (!fin.eof()) {
-        getline(fin, line);
+    while (getline(fin, line)) {
         temp.clear();
 
         splitString(line, temp, SEPARATOR);
@@ -143,7 +142,7 @@ void dfs(unsigned int current_node, unsigned int root_node)
     for(int i=0 ; i<graph[current_node].size() ; i++)
     {
         unsigned int next_node = graph[current_node][i];
-        if(next_node < root_node)
+        if(next_node <= root_node)
         {
             continue;
         }
