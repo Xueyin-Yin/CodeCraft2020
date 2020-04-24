@@ -11,7 +11,6 @@
 
 using namespace std;
 
-#define TEST_PATH ".\\Problem\\test_data.txt"
 #define INPUT_PATH "/data/test_data.txt"
 #define OUTPUT_PATH "/projects/student/result.txt"
 
@@ -30,34 +29,9 @@ vector<vector<vector<unsigned int>>> res(5);
 int dfs(); // DFS in graph
 int _dfs(); // DFS in _graph
 
-// For debug
-void debugGraph();
-void debugIds();
-
 void splitString(const string& s, vector<string>& v, const string& c);
 int buildGraph(); // Build graph based on the input file
 int writeResult(); // Write result to the output file
-
-// Debug the ids
-void debugIds() {
-    for (auto id : ids) {
-        cout << id << " ";
-    }
-    cout << endl;
-}
-
-// Debug the graph
-void debugGraph() {
-    for (auto pt = graph.begin(); pt != graph.end(); pt++) {
-        cout << pt->first << " ->  { ";
-
-        for (auto i : pt->second) {
-            cout << i << " ";
-        } 
-
-        cout << "}" << endl;
-    }
-}
 
 void splitString(const string& s, vector<string>& v, const string& c) {
   string::size_type pos1, pos2;
@@ -99,7 +73,7 @@ int buildGraph() {
     std::string line;
     unordered_set<unsigned int> pts;
 //    ifstream fin(INPUT_PATH, ios::in | ios::binary);
-    ifstream fin(TEST_PATH, ios::in | ios::binary);
+    ifstream fin(INPUT_PATH, ios::in | ios::binary);
 
     if (!fin.is_open()) {
         cout << "Cannot open this file" << endl;
@@ -152,7 +126,26 @@ int writeResult() {
         return -1;
     }
 
-    
+    int count = 0;
+    for (auto iter : res) {
+        count += iter.size();
+    }
+
+    fout << count << endl;
+    for (auto iter : res) {
+        for (auto iter1 : iter) {
+            for (int i = 0; i < iter1.size(); i++) {
+                if (i < iter1.size() - 1) {
+                    fout << iter1[i] << ",";
+                } else {
+                    fout << iter1[i] << endl;
+                }
+
+            }
+        }
+    }
+
+    fout.close();
 
     return 0;
 }
@@ -252,14 +245,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    for (auto iter : res) {
-        for (auto iter1 : iter) {
-            for (unsigned int i : iter1) {
-                cout << i << " ";
-            }
-            cout << endl;  
-        } 
-    }
+    writeResult();
 
     return 0;
 }
