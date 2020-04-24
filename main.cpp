@@ -11,8 +11,8 @@
 
 using namespace std;
 
-#define INPUT_PATH "data/test_data.txt"
-#define OUTPUT_PATH "projects/student/result.txt"
+#define INPUT_PATH "/data/test_data.txt"
+#define OUTPUT_PATH "/projects/student/result.txt"
 
 #define SEPARATOR ","
 
