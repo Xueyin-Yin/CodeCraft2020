@@ -11,7 +11,7 @@
 
 using namespace std;
 
-#define TEST_PATH ".\\Problem\\test.txt"
+#define TEST_PATH ".\\Problem\\test_data.txt"
 #define INPUT_PATH "/data/test_data.txt"
 #define OUTPUT_PATH "/projects/student/result.txt"
 
@@ -25,7 +25,7 @@ unordered_map<unsigned int, int> _visit;
 vector<unsigned int> ids;
 
 vector<unsigned int> path;
-vector<vector<unsigned int>> res;
+vector<vector<vector<unsigned int>>> res(5);
 
 int dfs(); // DFS in graph
 int _dfs(); // DFS in _graph
@@ -36,7 +36,7 @@ void debugIds();
 
 void splitString(const string& s, vector<string>& v, const string& c);
 int buildGraph(); // Build graph based on the input file
-int writeResult(vector<vector<int>> res); // Write result to the output file
+int writeResult(); // Write result to the output file
 
 // Debug the ids
 void debugIds() {
@@ -110,11 +110,8 @@ int buildGraph() {
     unsigned int src;
     unsigned int dest;
 
-    while (1) {
+    while (!fin.eof()) {
         getline(fin, line);
-        if (fin.eof()) {
-            break;
-        }
         temp.clear();
 
         splitString(line, temp, SEPARATOR);
@@ -122,6 +119,7 @@ int buildGraph() {
         dest = strtoui(temp[1]);
 
         graph[src].push_back(dest);
+  
         _graph[dest].push_back(src);
 
         pts.insert(src);
@@ -136,14 +134,35 @@ int buildGraph() {
         sort(pt->second.begin(), pt->second.end());
     }
 
+    for (auto pt = _graph.begin(); pt != _graph.end(); pt++) {
+        sort(pt->second.begin(), pt->second.end());
+    }
+
     fin.close();
 
     return 0;
 
 }
 
+int writeResult() {
+    ofstream fout(OUTPUT_PATH, ios::out);
+
+    if (fout.fail()) {
+        cout << "Cannot output to this file" << endl;
+        return -1;
+    }
+
+    
+
+    return 0;
+}
+
 void dfs(unsigned int current_node, unsigned int root_node)
 {
+    if (graph.find(current_node) == graph.end()) {
+        return;
+    }    
+
     for(int i=0 ; i<graph[current_node].size() ; i++)
     {
         unsigned int next_node = graph[current_node][i];
@@ -157,10 +176,8 @@ void dfs(unsigned int current_node, unsigned int root_node)
             int path_length = path.size();
             if(path_length > 2)
             {
-                for (unsigned int node : path) {
-                    res[path_length - 3].push_back(node);
-                }
-
+                    vector<unsigned int> temp(path);
+                    res[path_length - 3].push_back(temp);
             }
             path.pop_back();
         }
@@ -183,6 +200,10 @@ void dfs(unsigned int current_node, unsigned int root_node)
 
 void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigned int current_node, unsigned int root_node, int length)
 {
+    if (thisGraph.find(current_node) == thisGraph.end()) {
+        return;
+    }
+    
     for(auto next_node : thisGraph[current_node])
     {
         
@@ -205,14 +226,16 @@ int main(int argc, char* argv[]) {
 
     buildGraph();
 
-    debugGraph();
-    debugIds();
+    for (unsigned int node : ids) {
+        visit[node] = 0;
+        _visit[node] = -1;
+    }
 
     for(unsigned int current_node : ids)
     {
         dfs1(graph, current_node, current_node, 1);
         dfs1(_graph, current_node, current_node, 1);
-
+        
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
             _visit[_graph[current_node][j]] = -2;
@@ -222,6 +245,7 @@ int main(int argc, char* argv[]) {
         dfs(current_node, current_node);
         path.pop_back();
 
+
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
             _visit[_graph[current_node][j]] = current_node;
@@ -229,10 +253,12 @@ int main(int argc, char* argv[]) {
     }
 
     for (auto iter : res) {
-        for (unsigned int i : iter) {
-            cout << i << " ";
+        for (auto iter1 : iter) {
+            for (unsigned int i : iter1) {
+                cout << i << " ";
+            }
+            cout << endl;  
         } 
-        cout << endl;
     }
 
     return 0;
