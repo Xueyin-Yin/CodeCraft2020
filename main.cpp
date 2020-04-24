@@ -1,17 +1,13 @@
 #include <iostream>
 #include <fstream>
-#include <cstdio>
-#include <cstring>
 #include <string>
 #include <vector>
-#include <stack>
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
 
 using namespace std;
 
-#define TEST_PATH ".\\Problem\\test_data.txt"
 #define INPUT_PATH "/data/test_data.txt"
 #define OUTPUT_PATH "/projects/student/result.txt"
 
@@ -26,38 +22,6 @@ vector<unsigned int> ids;
 
 vector<unsigned int> path;
 vector<vector<vector<unsigned int>>> res(5);
-
-int dfs(); // DFS in graph
-int _dfs(); // DFS in _graph
-
-// For debug
-void debugGraph();
-void debugIds();
-
-void splitString(const string& s, vector<string>& v, const string& c);
-int buildGraph(); // Build graph based on the input file
-int writeResult(); // Write result to the output file
-
-// Debug the ids
-void debugIds() {
-    for (auto id : ids) {
-        cout << id << " ";
-    }
-    cout << endl;
-}
-
-// Debug the graph
-void debugGraph() {
-    for (auto pt = graph.begin(); pt != graph.end(); pt++) {
-        cout << pt->first << " ->  { ";
-
-        for (auto i : pt->second) {
-            cout << i << " ";
-        } 
-
-        cout << "}" << endl;
-    }
-}
 
 void splitString(const string& s, vector<string>& v, const string& c) {
   string::size_type pos1, pos2;
@@ -74,7 +38,6 @@ void splitString(const string& s, vector<string>& v, const string& c) {
   if(pos1 != s.length())
     v.push_back(s.substr(pos1));
 }
-
 
 unsigned int strtoui(string str)
 {
@@ -98,8 +61,8 @@ unsigned int strtoui(string str)
 int buildGraph() {
     std::string line;
     unordered_set<unsigned int> pts;
-//    ifstream fin(INPUT_PATH, ios::in | ios::binary);
-    ifstream fin(TEST_PATH, ios::in | ios::binary);
+
+    ifstream fin(INPUT_PATH, ios::in | ios::binary);
 
     if (!fin.is_open()) {
         cout << "Cannot open this file" << endl;
@@ -136,7 +99,7 @@ int buildGraph() {
 
     for (auto pt = _graph.begin(); pt != _graph.end(); pt++) {
         sort(pt->second.begin(), pt->second.end());
-    }
+    }    
 
     fin.close();
 
@@ -152,7 +115,22 @@ int writeResult() {
         return -1;
     }
 
-    
+    int count = 0;
+    for (auto iter : res) {
+        count += iter.size();
+    }
+
+    fout << count << endl;
+    for (auto iter : res) {
+        for (auto iter1 : iter) {
+            for (int i = 0; i < iter1.size() - 1; i++) {
+                fout << iter1[i] << ",";
+            }
+            if (iter1.size() > 0) fout << iter1[iter1.size() - 1] << endl;
+        }
+    }
+
+    fout.close();
 
     return 0;
 }
@@ -170,7 +148,7 @@ void dfs(unsigned int current_node, unsigned int root_node)
         {
             continue;
         }
-        else if(_visit[next_node] == -2 && visit[next_node] == 0)
+        if(_visit[next_node] == -2 && visit[next_node] == 0)
         {
             path.push_back(next_node);
             int path_length = path.size();
@@ -181,17 +159,17 @@ void dfs(unsigned int current_node, unsigned int root_node)
             }
             path.pop_back();
         }
-        else if(visit[next_node] == 1 || (_visit[next_node] != root_node && _visit[next_node] != -2))
+        if(visit[next_node] == 1 || (_visit[next_node] != root_node && _visit[next_node] != -2))
         {
             continue;
         }
-        else if(path.size() == 6 || next_node == root_node)
+        if(path.size() == 6 || next_node == root_node)
         {
             continue;
         }
 
         visit[next_node] = 1;
-        path.push_back(next_node);
+        path.push_back(next_node); 
         dfs(next_node, root_node);
         path.pop_back();
         visit[next_node] = 0;
@@ -252,14 +230,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    for (auto iter : res) {
-        for (auto iter1 : iter) {
-            for (unsigned int i : iter1) {
-                cout << i << " ";
-            }
-            cout << endl;  
-        } 
-    }
+    writeResult();
 
     return 0;
 }
