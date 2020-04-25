@@ -178,13 +178,13 @@ void dfs(unsigned int current_node, unsigned int root_node, int depth)
     }
 }
 
-void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigned int current_node, unsigned int root_node, int length)
+void dfs1(unsigned int current_node, unsigned int root_node, int length)
 {
-    if (thisGraph.find(current_node) == thisGraph.end()) {
+    if (_graph.find(current_node) == _graph.end()) {
         return;
     }
     
-    for(auto next_node : thisGraph[current_node])
+    for(auto next_node : _graph[current_node])
     {
         
         if(next_node < root_node || visit[next_node] == 1)
@@ -197,7 +197,7 @@ void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigne
             continue;
 
         visit[next_node] = 1;
-        dfs1(thisGraph, next_node, root_node, length + 1);
+        dfs1(next_node, root_node, length + 1);
         visit[next_node] = 0;
     }
 }
@@ -213,7 +213,7 @@ int main(int argc, char* argv[]) {
 
     for(unsigned int current_node : ids)
     {
-        dfs1(_graph, current_node, current_node, 1);
+        dfs1(current_node, current_node, 1);
         
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
