@@ -133,7 +133,7 @@ int writeResult() {
     return 0;
 }
 
-void dfs(unsigned int current_node, unsigned int root_node)
+void dfs(unsigned int current_node, unsigned int root_node, int depth)
 {
     if (graph.find(current_node) == graph.end()) {
         return;
@@ -157,7 +157,11 @@ void dfs(unsigned int current_node, unsigned int root_node)
             }
             path.pop_back();
         }
-        if(visit[next_node] == 1 || (_visit[next_node] != root_node && _visit[next_node] != -2))
+        if(visit[next_node] == 1)
+        {
+            continue;
+        }
+        if((depth > 3 && _visit[next_node] != root_node) && _visit[next_node] != -2)
         {
             continue;
         }
@@ -168,7 +172,7 @@ void dfs(unsigned int current_node, unsigned int root_node)
 
         visit[next_node] = 1;
         path.push_back(next_node); 
-        dfs(next_node, root_node);
+        dfs(next_node, root_node, depth + 1);
         path.pop_back();
         visit[next_node] = 0;
     }
@@ -209,7 +213,6 @@ int main(int argc, char* argv[]) {
 
     for(unsigned int current_node : ids)
     {
-        dfs1(graph, current_node, current_node, 1);
         dfs1(_graph, current_node, current_node, 1);
         
         for(int j=0 ; j<_graph[current_node].size() ; j++)
@@ -218,7 +221,7 @@ int main(int argc, char* argv[]) {
         }
 
         path.push_back(current_node);
-        dfs(current_node, current_node);
+        dfs(current_node, current_node, 1);
         path.pop_back();
 
 
