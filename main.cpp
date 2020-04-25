@@ -21,9 +21,7 @@ unordered_map<unsigned int, vector<unsigned int>> _graph;
 unordered_map<unsigned int, int> visit;
 unordered_map<unsigned int, int> _visit;
 
-pthread_t ths[NUM_THREADS];
-
-void *(*curFunc)(void *);
+int partition_size;
 
 vector<unsigned int> ids;
 
@@ -65,13 +63,6 @@ unsigned int strtoui(string str)
 	return result;
 }
 
-void createThreads() {
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_create(&ths[i], NULL, curFunc, (void *) i);
-    }
-}
-
 int buildGraph() {
     std::string line;
     unordered_set<unsigned int> pts;
@@ -104,6 +95,7 @@ int buildGraph() {
 
     }
 
+
     ids.assign(pts.begin(), pts.end());
     sort(ids.begin(), ids.end());
 
@@ -114,6 +106,11 @@ int buildGraph() {
     for (auto pt = _graph.begin(); pt != _graph.end(); pt++) {
         sort(pt->second.begin(), pt->second.end());
     }    
+
+    int num_ids = ids.size();
+	int divisor = num_ids / NUM_THREADS;
+	int remainer = num_ids % NUM_THREADS;
+	partition_size = (remainer == 0) ? divisor : divisor + 1;
 
     fin.close();
 
@@ -216,34 +213,14 @@ void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigne
 
 void *subTask(void *pid) {
 
-    pthread_exit((void *) NULL);
-}
+    int start = *((int *)pid);
+    int end = (start + 1) * partition_size;
 
-void threadRun(void *(*task)(void *)) {
-
-    curFunc = task;
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_join(ths[i], NULL);
-    }
-}
-
-int main(int argc, char* argv[]) {
-
-    createThreads();
-
-    buildGraph();
-
-    for (unsigned int node : ids) {
-        visit[node] = 0;
-        _visit[node] = -1;
-    }
-
-    for(unsigned int current_node : ids)
-    {
+    for (int i = start * partition_size; i < ((end <= ids.size()) ? end : ids.size()); i++) {
+        unsigned int current_node = ids[i];
         dfs1(graph, current_node, current_node, 1);
         dfs1(_graph, current_node, current_node, 1);
-        
+
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
             _visit[_graph[current_node][j]] = -2;
@@ -253,12 +230,53 @@ int main(int argc, char* argv[]) {
         dfs(current_node, current_node);
         path.pop_back();
 
-
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
             _visit[_graph[current_node][j]] = current_node;
         }
     }
+
+    free(pid);
+    pthread_exit((void *) NULL);
+}
+
+void parallelDFS() {
+    int *pid;
+    pthread_t *ths = (pthread_t*)malloc(sizeof(pthread_t) * NUM_THREADS);
+    pthread_attr_t thread_attr;
+    size_t stack_size;
+
+    pthread_attr_init(&thread_attr);
+    pthread_attr_setstacksize(&thread_attr, 800 * 1024 * 1024);
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pid = (int *) malloc (sizeof(int));
+        *pid = i;
+        if (pthread_create(&ths[i], &thread_attr, subTask, (void *) pid) != 0) {
+            perror("Thread create");
+        }
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (pthread_join(ths[i], NULL) != 0) {
+            perror("Thread join");
+        }
+    }
+    cout << "dfs end!!!" << endl;
+    if (ths != NULL) free(ths);
+}
+
+
+int main(int argc, char* argv[]) {
+
+    buildGraph();
+
+    for (unsigned int node : ids) {
+        visit[node] = 0;
+        _visit[node] = -1;
+    }
+
+    parallelDFS();
 
     writeResult();
 
