@@ -21,6 +21,9 @@ unordered_map<unsigned int, int> _visit;
 vector<unsigned int> ids;
 
 vector<unsigned int> path;
+vector<vector<vector<unsigned int>>> res1(5);
+vector<vector<vector<unsigned int>>> res2(5);
+vector<vector<vector<unsigned int>>> res3(5);
 vector<vector<vector<unsigned int>>> res(5);
 
 void splitString(const string& s, vector<string>& v, const string& c) {
@@ -105,6 +108,66 @@ int buildGraph() {
 
 }
 
+vector<unsigned int> comparePath(vector<vector<unsigned int>>& a, int &i, vector<vector<unsigned int>>& b, int& j, vector<vector<unsigned int>>& c, int& k)
+{
+    vector<int*> ptrs;
+    vector<vector<unsigned int>*> ptrarray;
+    if(i < a.size())
+    {
+        ptrs.push_back(&i);
+        ptrarray.push_back(&a[i]);
+    }
+    
+    if(j < b.size())
+    {
+        ptrs.push_back(&j);
+        ptrarray.push_back(&b[j]);
+    }
+
+    if(k < c.size())
+    {
+        ptrs.push_back(&k);
+        ptrarray.push_back(&c[k]);
+    }
+
+    int *ptr = ptrs[0];
+    vector<unsigned int>* arr = ptrarray[0];
+    int N = arr->size();
+    for(int idx=1 ; idx<ptrarray.size() ; idx++)
+    {
+        for(int sizei=0 ; sizei < N ; sizei++)
+        {
+            if(ptrarray[idx]->at(sizei) < arr->at(sizei))
+            {
+                arr = ptrarray[idx];
+                ptr = ptrs[idx];
+                break;
+            }
+            else if(ptrarray[idx]->at(sizei) > arr->at(sizei))
+            {
+                break;
+            }
+        }
+    }
+
+    *ptr = *ptr + 1;
+    return *arr;
+}
+
+void mergeResults()
+{
+    for(int len=3 ; len<8 ; len++)
+    {
+        int lenIdx = len - 3;
+        int i=0, j=0, k=0;
+        while(i < res1[lenIdx].size() || j < res2[lenIdx].size() || k < res3[lenIdx].size())
+        {
+            vector<unsigned int> smallestPath = comparePath(res1[lenIdx], i, res2[lenIdx], j, res3[lenIdx], k);
+            res[lenIdx].push_back(smallestPath);
+        }
+    }
+}
+
 int writeResult() {
     ofstream fout(OUTPUT_PATH, ios::out);
 
@@ -152,8 +215,8 @@ void dfs(unsigned int current_node, unsigned int root_node, int depth)
             int path_length = path.size();
             if(path_length > 2)
             {
-                    vector<unsigned int> temp(path);
-                    res[path_length - 3].push_back(temp);
+                vector<unsigned int> temp(path);
+                res[path_length - 3].push_back(temp);
             }
             path.pop_back();
         }
