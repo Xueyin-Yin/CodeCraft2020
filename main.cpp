@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
+#include <pthread.h>
 
 using namespace std;
 
@@ -13,10 +14,16 @@ using namespace std;
 
 #define SEPARATOR ","
 
+#define NUM_THREADS 3
+
 unordered_map<unsigned int, vector<unsigned int>> graph;
 unordered_map<unsigned int, vector<unsigned int>> _graph;
 unordered_map<unsigned int, int> visit;
 unordered_map<unsigned int, int> _visit;
+
+pthread_t ths[NUM_THREADS];
+
+void *(*curFunc)(void *);
 
 vector<unsigned int> ids;
 
@@ -56,6 +63,13 @@ unsigned int strtoui(string str)
 			break;
 	}
 	return result;
+}
+
+void createThreads() {
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_create(&ths[i], NULL, curFunc, (void *) i);
+    }
 }
 
 int buildGraph() {
@@ -106,7 +120,7 @@ int buildGraph() {
 }
 
 int writeResult() {
-    ofstream fout(OUTPUT_PATH, ios::out);
+    ofstream fout(OUTPUT_PATH, ios::out | ios::binary);
 
     if (fout.fail()) {
         cout << "Cannot output to this file" << endl;
@@ -202,7 +216,23 @@ void dfs1(unsigned int current_node, unsigned int root_node, int length)
     }
 }
 
+void *subTask(void *pid) {
+
+    pthread_exit((void *) NULL);
+}
+
+void threadRun(void *(*task)(void *)) {
+
+    curFunc = task;
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(ths[i], NULL);
+    }
+}
+
 int main(int argc, char* argv[]) {
+
+    createThreads();
 
     buildGraph();
 
