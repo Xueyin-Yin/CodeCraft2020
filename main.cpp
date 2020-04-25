@@ -66,10 +66,15 @@ unsigned int strtoui(string str)
 }
 
 void createThreads() {
+    int* pid;
 
     for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_create(&ths[i], NULL, curFunc, (void *) i);
+        pid = (int *) malloc (sizeof(int));
+        *pid = i;
+        pthread_create(&ths[i], NULL, curFunc, (void *) pid);
     }
+
+    free(pid);
 }
 
 int buildGraph() {
