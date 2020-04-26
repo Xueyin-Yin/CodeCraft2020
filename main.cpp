@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
+#include <cstring>
 #include <pthread.h>
 
 using namespace std;
@@ -14,17 +15,16 @@ using namespace std;
 
 #define SEPARATOR ","
 
+#define NUM_THREADS 8
+
 unordered_map<unsigned int, vector<unsigned int>> graph;
 unordered_map<unsigned int, vector<unsigned int>> _graph;
-unordered_map<unsigned int, int> visit;
-unordered_map<unsigned int, int> _visit;
+
+int partition_size;
 
 vector<unsigned int> ids;
 
-vector<unsigned int> path;
-vector<vector<vector<unsigned int>>> res1(5);
-vector<vector<vector<unsigned int>>> res2(5);
-vector<vector<vector<unsigned int>>> res3(5);
+vector<vector<vector<vector<unsigned int>>>> ress(NUM_THREADS);
 vector<vector<vector<unsigned int>>> res(5);
 
 void splitString(const string& s, vector<string>& v, const string& c) {
@@ -62,6 +62,17 @@ unsigned int strtoui(string str)
 	return result;
 }
 
+void initRess() {
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        ress[i].push_back(vector<vector<unsigned int>> ());
+        ress[i].push_back(vector<vector<unsigned int>> ());
+        ress[i].push_back(vector<vector<unsigned int>> ());
+        ress[i].push_back(vector<vector<unsigned int>> ());
+        ress[i].push_back(vector<vector<unsigned int>> ());
+    }
+}
+
 int buildGraph() {
     std::string line;
     unordered_set<unsigned int> pts;
@@ -92,6 +103,7 @@ int buildGraph() {
 
     }
 
+
     ids.assign(pts.begin(), pts.end());
     sort(ids.begin(), ids.end());
 
@@ -103,32 +115,27 @@ int buildGraph() {
         sort(pt->second.begin(), pt->second.end());
     }    
 
+    int num_ids = ids.size();
+	int divisor = num_ids / NUM_THREADS;
+	int remainer = num_ids % NUM_THREADS;
+	partition_size = (remainer == 0) ? divisor : divisor + 1;
+
     fin.close();
 
     return 0;
 
 }
 
-vector<unsigned int> comparePath(vector<vector<unsigned int>>& a, int &i, vector<vector<unsigned int>>& b, int& j, vector<vector<unsigned int>>& c, int& k)
+vector<unsigned int> comparePath(int lenIdx, int *indexs)
 {
     vector<int*> ptrs;
     vector<vector<unsigned int>*> ptrarray;
-    if(i < a.size())
-    {
-        ptrs.push_back(&i);
-        ptrarray.push_back(&a[i]);
-    }
-    
-    if(j < b.size())
-    {
-        ptrs.push_back(&j);
-        ptrarray.push_back(&b[j]);
-    }
 
-    if(k < c.size())
-    {
-        ptrs.push_back(&k);
-        ptrarray.push_back(&c[k]);
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (indexs[i] < ress[i][lenIdx].size()) {
+            ptrs.push_back(&indexs[i]);
+            ptrarray.push_back(&ress[i][lenIdx][indexs[i]]);
+        }
     }
 
     int *ptr = ptrs[0];
@@ -157,13 +164,26 @@ vector<unsigned int> comparePath(vector<vector<unsigned int>>& a, int &i, vector
 
 void mergeResults()
 {
+    int indexs[NUM_THREADS];
+
     for(int len=3 ; len<8 ; len++)
     {
         int lenIdx = len - 3;
-        int i=0, j=0, k=0;
-        while(i < res1[lenIdx].size() || j < res2[lenIdx].size() || k < res3[lenIdx].size())
+        
+        memset(indexs, 0, NUM_THREADS * sizeof(int));
+
+        while(1)
         {
-            vector<unsigned int> smallestPath = comparePath(res1[lenIdx], i, res2[lenIdx], j, res3[lenIdx], k);
+            int count = 0;
+            for (int i = 0; i < NUM_THREADS; i++) {
+                if (indexs[i] >= ress[i][lenIdx].size()) {
+                    count++;
+                }
+            }
+
+            if (count == NUM_THREADS) break;
+
+            vector<unsigned int> smallestPath = comparePath(lenIdx, indexs);
             res[lenIdx].push_back(smallestPath);
         }
     }
@@ -197,7 +217,9 @@ int writeResult() {
     return 0;
 }
 
-void dfs(unsigned int current_node, unsigned int root_node, int depth)
+void dfs(int threadId, unsigned int current_node, unsigned int root_node, 
+         vector<unsigned int>& path,
+         unordered_set<unsigned int>& visit, unordered_map<unsigned int, int>& _visit, int depth)
 {
     if (graph.find(current_node) == graph.end()) {
         return;
@@ -210,22 +232,21 @@ void dfs(unsigned int current_node, unsigned int root_node, int depth)
         {
             continue;
         }
-        if(_visit[next_node] == -2 && visit[next_node] == 0)
+        if((_visit.find(next_node) != _visit.end() && _visit[next_node] == -2) && (visit.find(next_node) == visit.end()))
         {
             path.push_back(next_node);
             int path_length = path.size();
             if(path_length > 2)
             {
                 vector<unsigned int> temp(path);
-                res[path_length - 3].push_back(temp);
+                ress[threadId][path_length - 3].push_back(temp);
             }
             path.pop_back();
         }
-        if(visit[next_node] == 1)
-        {
+        if((visit.find(next_node) != visit.end())) {
             continue;
         }
-        if((depth > 3 && _visit[next_node] != root_node) && _visit[next_node] != -2)
+        if (depth > 3 && (_visit.find(next_node) == _visit.end() || (_visit[next_node] != root_node && _visit[next_node] != -2)))
         {
             continue;
         }
@@ -234,15 +255,17 @@ void dfs(unsigned int current_node, unsigned int root_node, int depth)
             continue;
         }
 
-        visit[next_node] = 1;
+        visit.insert(next_node);
         path.push_back(next_node); 
-        dfs(next_node, root_node, depth + 1);
+        dfs(threadId, next_node, root_node, path, visit, _visit, depth + 1);
         path.pop_back();
-        visit[next_node] = 0;
+        visit.erase(next_node);
     }
 }
 
-void dfs1(unsigned int current_node, unsigned int root_node, int length)
+void dfs1(unsigned int current_node, unsigned int root_node, int length, 
+            unordered_set<unsigned int> &visit,
+            unordered_map<unsigned int, int> &_visit)
 {
     if (_graph.find(current_node) == _graph.end()) {
         return;
@@ -251,7 +274,7 @@ void dfs1(unsigned int current_node, unsigned int root_node, int length)
     for(auto next_node : _graph[current_node])
     {
         
-        if(next_node < root_node || visit[next_node] == 1)
+        if(next_node < root_node || visit.find(next_node) != visit.end())
         {
             continue;
         }
@@ -260,40 +283,76 @@ void dfs1(unsigned int current_node, unsigned int root_node, int length)
         if(length == 3)
             continue;
 
-        visit[next_node] = 1;
-        dfs1(next_node, root_node, length + 1);
-        visit[next_node] = 0;
+        visit.insert(next_node);
+        dfs1(next_node, root_node, length + 1, visit, _visit);
+        visit.erase(next_node);
     }
 }
 
-int main(int argc, char* argv[]) {
+void *subTask(void *pid) {
 
-    buildGraph();
+    int start = *((int *)pid);
+    int threadId = start;
+    int end = (start + 1) * partition_size;
 
-    for (unsigned int node : ids) {
-        visit[node] = 0;
-        _visit[node] = -1;
-    }
+    for (int i = start * partition_size; i < ((end <= ids.size()) ? end : ids.size()); i++) {
+        unsigned int current_node = ids[i];
 
-    for(unsigned int current_node : ids)
-    {
-        dfs1(current_node, current_node, 1);
-        
+        unordered_set<unsigned int> visit; 
+        unordered_map<unsigned int, int> _visit;
+        vector<unsigned int> path;
+
+        dfs1(current_node, current_node, 1, visit, _visit);
+
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
             _visit[_graph[current_node][j]] = -2;
         }
 
         path.push_back(current_node);
-        dfs(current_node, current_node, 1);
+        dfs(threadId, current_node, current_node, path, visit, _visit, 1);
         path.pop_back();
-
 
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
             _visit[_graph[current_node][j]] = current_node;
         }
     }
+
+    free(pid);
+    pthread_exit((void *) NULL);
+}
+
+void parallelDFS() {
+    int *pid;
+    pthread_t *ths = (pthread_t*)malloc(sizeof(pthread_t) * NUM_THREADS);
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pid = (int *) malloc (sizeof(int));
+        *pid = i;
+        if (pthread_create(&ths[i], NULL, subTask, (void *) pid) != 0) {
+            perror("Thread create");
+        }
+    }
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (pthread_join(ths[i], NULL) != 0) {
+            perror("Thread join");
+        }
+    }
+    if (ths != NULL) free(ths);
+}
+
+
+int main(int argc, char* argv[]) {
+
+    initRess();
+
+    buildGraph();
+
+    parallelDFS();
+
+    mergeResults();
 
     writeResult();
 
