@@ -15,7 +15,7 @@ using namespace std;
 
 #define SEPARATOR ","
 
-#define NUM_THREADS 8
+#define NUM_THREADS 4
 
 unordered_map<unsigned int, vector<unsigned int>> graph;
 unordered_map<unsigned int, vector<unsigned int>> _graph;
