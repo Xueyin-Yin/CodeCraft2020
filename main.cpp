@@ -9,8 +9,10 @@
 
 using namespace std;
 
-#define INPUT_PATH "/data/test_data.txt"
-#define OUTPUT_PATH "/projects/student/result.txt"
+// #define INPUT_PATH "/data/test_data.txt"
+// #define OUTPUT_PATH "/projects/student/result.txt"
+#define INPUT_PATH "../2020HuaweiCodecraft-TestData/1004812/test_data.txt"
+#define OUTPUT_PATH "explore/result.txt"
 
 #define SEPARATOR ","
 
@@ -18,14 +20,16 @@ using namespace std;
 
 unordered_map<unsigned int, vector<unsigned int>> graph;
 unordered_map<unsigned int, vector<unsigned int>> _graph;
-unordered_map<unsigned int, int> visit;
-unordered_map<unsigned int, int> _visit;
+// unordered_map<unsigned int, int> visit;
+// unordered_map<unsigned int, int> _visit;
 
 int partition_size;
 
 vector<unsigned int> ids;
 
-vector<unsigned int> path;
+vector<vector<vector<unsigned int>>> res1(5);
+vector<vector<vector<unsigned int>>> res2(5);
+vector<vector<vector<unsigned int>>> res3(5);
 vector<vector<vector<unsigned int>>> res(5);
 
 void splitString(const string& s, vector<string>& v, const string& c) {
@@ -78,8 +82,7 @@ int buildGraph() {
     unsigned int src;
     unsigned int dest;
 
-    while (!fin.eof()) {
-        getline(fin, line);
+    while (getline(fin, line)) {
         temp.clear();
 
         splitString(line, temp, SEPARATOR);
@@ -118,6 +121,66 @@ int buildGraph() {
 
 }
 
+vector<unsigned int> comparePath(vector<vector<unsigned int>>& a, int &i, vector<vector<unsigned int>>& b, int& j, vector<vector<unsigned int>>& c, int& k)
+{
+    vector<int*> ptrs;
+    vector<vector<unsigned int>*> ptrarray;
+    if(i < a.size())
+    {
+        ptrs.push_back(&i);
+        ptrarray.push_back(&a[i]);
+    }
+    
+    if(j < b.size())
+    {
+        ptrs.push_back(&j);
+        ptrarray.push_back(&b[j]);
+    }
+
+    if(k < c.size())
+    {
+        ptrs.push_back(&k);
+        ptrarray.push_back(&c[k]);
+    }
+
+    int *ptr = ptrs[0];
+    vector<unsigned int>* arr = ptrarray[0];
+    int N = arr->size();
+    for(int idx=1 ; idx<ptrarray.size() ; idx++)
+    {
+        for(int sizei=0 ; sizei < N ; sizei++)
+        {
+            if(ptrarray[idx]->at(sizei) < arr->at(sizei))
+            {
+                arr = ptrarray[idx];
+                ptr = ptrs[idx];
+                break;
+            }
+            else if(ptrarray[idx]->at(sizei) > arr->at(sizei))
+            {
+                break;
+            }
+        }
+    }
+
+    *ptr = *ptr + 1;
+    return *arr;
+}
+
+void mergeResults()
+{
+    for(int len=3 ; len<8 ; len++)
+    {
+        int lenIdx = len - 3;
+        int i=0, j=0, k=0;
+        while(i < res1[lenIdx].size() || j < res2[lenIdx].size() || k < res3[lenIdx].size())
+        {
+            vector<unsigned int> smallestPath = comparePath(res1[lenIdx], i, res2[lenIdx], j, res3[lenIdx], k);
+            res[lenIdx].push_back(smallestPath);
+        }
+    }
+}
+
 int writeResult() {
     ofstream fout(OUTPUT_PATH, ios::out | ios::binary);
 
@@ -146,7 +209,9 @@ int writeResult() {
     return 0;
 }
 
-void dfs(unsigned int current_node, unsigned int root_node)
+void dfs(int threadId, unsigned int current_node, unsigned int root_node, 
+         vector<unsigned int>& path,
+         unordered_set<unsigned int>& visit, unordered_map<unsigned int, int>& _visit)
 {
     if (graph.find(current_node) == graph.end()) {
         return;
@@ -155,22 +220,27 @@ void dfs(unsigned int current_node, unsigned int root_node)
     for(int i=0 ; i<graph[current_node].size() ; i++)
     {
         unsigned int next_node = graph[current_node][i];
-        if(next_node < root_node)
+        if(next_node <= root_node)
         {
             continue;
         }
-        if(_visit[next_node] == -2 && visit[next_node] == 0)
+        if((_visit.find(next_node) != _visit.end() && _visit[next_node] == -2) && visit.find(next_node) == visit.end())
         {
             path.push_back(next_node);
             int path_length = path.size();
             if(path_length > 2)
             {
-                    vector<unsigned int> temp(path);
-                    res[path_length - 3].push_back(temp);
+                vector<unsigned int> temp(path);
+                if(threadId == 0)
+                    res1[path_length - 3].push_back(temp);
+                else if(threadId == 1)
+                    res2[path_length - 3].push_back(temp);
+                else
+                    res3[path_length - 3].push_back(temp);
             }
             path.pop_back();
         }
-        if(visit[next_node] == 1 || (_visit[next_node] != root_node && _visit[next_node] != -2))
+        if(visit.find(next_node) != visit.end() || _visit.find(next_node) == _visit.end() || (_visit[next_node] != root_node && _visit[next_node] != -2))
         {
             continue;
         }
@@ -179,15 +249,17 @@ void dfs(unsigned int current_node, unsigned int root_node)
             continue;
         }
 
-        visit[next_node] = 1;
+        visit.insert(next_node);
         path.push_back(next_node); 
-        dfs(next_node, root_node);
+        dfs(threadId, next_node, root_node, path, visit, _visit);
         path.pop_back();
-        visit[next_node] = 0;
+        visit.erase(next_node);
     }
 }
 
-void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigned int current_node, unsigned int root_node, int length)
+void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigned int current_node, unsigned int root_node, int length, 
+            unordered_set<unsigned int> &visit,
+            unordered_map<unsigned int, int> &_visit)
 {
     if (thisGraph.find(current_node) == thisGraph.end()) {
         return;
@@ -196,7 +268,7 @@ void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigne
     for(auto next_node : thisGraph[current_node])
     {
         
-        if(next_node < root_node || visit[next_node] == 1)
+        if(next_node < root_node || visit.find(next_node) != visit.end())
         {
             continue;
         }
@@ -205,21 +277,27 @@ void dfs1(unordered_map<unsigned int, vector<unsigned int>> &thisGraph,  unsigne
         if(length == 3)
             continue;
 
-        visit[next_node] = 1;
-        dfs1(thisGraph, next_node, root_node, length + 1);
-        visit[next_node] = 0;
+        visit.insert(next_node);
+        dfs1(thisGraph, next_node, root_node, length + 1, visit, _visit);
+        visit.erase(next_node);
     }
 }
 
 void *subTask(void *pid) {
 
     int start = *((int *)pid);
+    int threadId = start;
     int end = (start + 1) * partition_size;
 
     for (int i = start * partition_size; i < ((end <= ids.size()) ? end : ids.size()); i++) {
         unsigned int current_node = ids[i];
-        dfs1(graph, current_node, current_node, 1);
-        dfs1(_graph, current_node, current_node, 1);
+
+        unordered_set<unsigned int> visit; 
+        unordered_map<unsigned int, int> _visit;
+        vector<unsigned int> path;
+
+        dfs1(graph, current_node, current_node, 1, visit, _visit);
+        dfs1(_graph, current_node, current_node, 1, visit, _visit);
 
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
@@ -227,7 +305,7 @@ void *subTask(void *pid) {
         }
 
         path.push_back(current_node);
-        dfs(current_node, current_node);
+        dfs(threadId, current_node, current_node, path, visit, _visit);
         path.pop_back();
 
         for(int j=0 ; j<_graph[current_node].size() ; j++)
@@ -262,7 +340,6 @@ void parallelDFS() {
             perror("Thread join");
         }
     }
-    cout << "dfs end!!!" << endl;
     if (ths != NULL) free(ths);
 }
 
@@ -271,12 +348,9 @@ int main(int argc, char* argv[]) {
 
     buildGraph();
 
-    for (unsigned int node : ids) {
-        visit[node] = 0;
-        _visit[node] = -1;
-    }
-
     parallelDFS();
+
+    mergeResults();
 
     writeResult();
 
