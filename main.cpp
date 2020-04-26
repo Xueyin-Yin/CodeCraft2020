@@ -14,16 +14,10 @@ using namespace std;
 
 #define SEPARATOR ","
 
-#define NUM_THREADS 3
-
 unordered_map<unsigned int, vector<unsigned int>> graph;
 unordered_map<unsigned int, vector<unsigned int>> _graph;
 unordered_map<unsigned int, int> visit;
 unordered_map<unsigned int, int> _visit;
-
-pthread_t ths[NUM_THREADS];
-
-void *(*curFunc)(void *);
 
 vector<unsigned int> ids;
 
@@ -66,18 +60,6 @@ unsigned int strtoui(string str)
 			break;
 	}
 	return result;
-}
-
-void createThreads() {
-    int* pid;
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pid = (int *) malloc (sizeof(int));
-        *pid = i;
-        pthread_create(&ths[i], NULL, curFunc, (void *) pid);
-    }
-
-    free(pid);
 }
 
 int buildGraph() {
@@ -284,23 +266,7 @@ void dfs1(unsigned int current_node, unsigned int root_node, int length)
     }
 }
 
-void *subTask(void *pid) {
-
-    pthread_exit((void *) NULL);
-}
-
-void threadRun(void *(*task)(void *)) {
-
-    curFunc = task;
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_join(ths[i], NULL);
-    }
-}
-
 int main(int argc, char* argv[]) {
-
-    createThreads();
 
     buildGraph();
 
