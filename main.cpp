@@ -19,7 +19,7 @@ using uint = unsigned int;
 
 // For testing on local dataset.
 #ifdef DEBUG
-#define INPUT_PATH "../HuaweiSet/1004812/test_data.txt"
+#define INPUT_PATH "../test_data.txt"
 #define OUTPUT_PATH "explore/result.txt"
 #endif
 
@@ -248,12 +248,45 @@ int writeResult() {
     return 0;
 }
 
+struct IPath 
+{
+    vector<uint> path;
+    uint FirstAmount;
+    uint LastAmount;
+    int size;
+
+    IPath(vector<uint> _path, uint _first_amount = 0, uint _last_amount = 0):
+        FirstAmount(_first_amount),
+        LastAmount(_last_amount),
+        path(_path)
+    {
+        size = _path.size();
+    }
+};
+
+bool inRange(uint X, uint Y)
+{
+    // 0.2 <= Y/X <= 3.0
+
+    if(X <= Y)
+    {
+        if(UINT_MAX - X < X || UINT_MAX - 2*X < X) return true;
+        return Y <= 3 * X;
+    }
+    else
+    {
+        if(UINT_MAX - Y < Y || UINT_MAX - 2*Y < Y || UINT_MAX - 3*Y < Y || UINT_MAX - 4*Y < Y) return true;
+        return X <= 5 * Y;
+    }
+}
+
 void dfs(int threadId, 
          uint current_node, 
          uint root_node, 
+         uint first_amount,
          vector<uint>& path,
          unordered_set<uint>& visit, 
-         unordered_map<uint, vector<vector<uint>>>& _visit, 
+         unordered_map<uint, vector<IPath>>& _visit, 
          int depth, 
          uint pre_amount)
 {
@@ -261,24 +294,25 @@ void dfs(int threadId,
         return;
     }    
 
-    for(pair<uint, uint> next_edge: graph[current_node])
+    for(pair<uint, uint>& next_edge: graph[current_node])
     {
         uint next_node = next_edge.first;
         uint amount = next_edge.second;
+
         // If next_node is smaller than root_node, that means next_node has already been considered before, skip.
         // If next_node has already been visited in current path, skip.
-
         if(next_node < root_node || (next_node != root_node && visit.find(next_node) != visit.end()))
         {
             continue;
         }
 
-        float q = amount * 1.0 / pre_amount;
-        if (current_node != root_node && (q < 0.2 || q > 3.0)) {
+        if (current_node != root_node && !inRange(pre_amount, amount)) {
             continue;
         }       
 
-        if(next_node == root_node)
+        if(current_node == root_node) first_amount = amount;
+
+        if(next_node == root_node && inRange(amount, first_amount))
         {
             int path_length = path.size();
             if(path_length >= 3)
@@ -291,16 +325,23 @@ void dfs(int threadId,
         }
         else if(depth == 4 && _visit.find(next_node) != _visit.end())
         {        
-            for(int i=0 ; i<_visit[next_node].size() ; i++)
+            // for(int i=0 ; i<_visit[next_node].size() ; i++)
+            for(IPath &ipath: _visit[next_node])
             { 
-                int _len = _visit[next_node][i].size() + path.size();
+                // int _len = _visit[next_node][i].size() + path.size();
+                int _len = ipath.size + path.size();
                 if(3 <= _len && _len <= 7) 
                 {
+                    // q = first_amount * 1.0 / ipath.FirstAmount;
+                    if(!inRange(ipath.FirstAmount, first_amount)) continue;
+                    if(!inRange(amount, ipath.LastAmount)) continue;
+
                     vector<uint> tmp_path(path);
                     bool nodeVisited = false;
-                    for(int j=_visit[next_node][i].size()-1, k=0 ; j>=0 ; j--, k++)
+                    for(int j=ipath.size-1 ; j>=0 ; j--)
                     {
-                        uint _node = _visit[next_node][i][j];
+                        uint _node = ipath.path[j];
+
                         if(visit.find(_node) != visit.end())
                         {
                             nodeVisited = true;
@@ -322,23 +363,23 @@ void dfs(int threadId,
         
         visit.insert(next_node);
         path.push_back(next_node); 
-        dfs(threadId, next_node, root_node, path, visit, _visit, depth + 1, amount);
+        dfs(threadId, next_node, root_node, first_amount, path, visit, _visit, depth + 1, amount);
         path.pop_back();
         visit.erase(next_node);
     }
 }
 
-void inverted_dfs(uint current_node, uint root_node, int length, 
+void inverted_dfs(uint current_node, uint root_node, uint first_amount,int length,
             vector<uint>& path,
             unordered_set<uint> &visit,
-            unordered_map<uint, vector<vector<uint>>> &_visit, 
+            unordered_map<uint, vector<IPath>> &_visit, 
             uint pre_amount)
 {
     if (_graph.find(current_node) == _graph.end()) {
         return;
     }
     
-    for(pair<uint, uint> next_edge : _graph[current_node])
+    for(pair<uint, uint>& next_edge : _graph[current_node])
     {
         uint next_node = next_edge.first;
         uint amount = next_edge.second;
@@ -348,14 +389,14 @@ void inverted_dfs(uint current_node, uint root_node, int length,
             continue;
         }
 
-        float q = pre_amount * 1.0 / amount;
-
-        if (current_node != root_node && (q < 0.2 || q > 3.0)) {
+        if (current_node != root_node && !inRange(amount, pre_amount)) {
             continue;
         }
 
+        if(current_node == root_node) first_amount = amount;
+
         path.push_back(next_node);
-        _visit[next_node].push_back(path);
+        _visit[next_node].push_back(IPath(path, first_amount, amount));
         
         if(length == 3)
         {
@@ -364,7 +405,7 @@ void inverted_dfs(uint current_node, uint root_node, int length,
         }
 
         visit.insert(next_node);
-        inverted_dfs(next_node, root_node, length + 1, path, visit, _visit, amount);
+        inverted_dfs(next_node, root_node, first_amount, length + 1, path, visit, _visit, amount);
         visit.erase(next_node);
         path.pop_back();
     }
@@ -379,29 +420,30 @@ void subTask(int threadId)
         uint current_node = ids[i];
 
         unordered_set<uint> visit; 
-        unordered_map<uint, vector<vector<uint>>> _visit;
+        unordered_map<uint, vector<IPath>> _visit;
         vector<uint> reverse_path;
+        uint first_amount = 0;
 
         visit.insert(current_node);
-        inverted_dfs(current_node, current_node, 1, reverse_path, visit, _visit, 0);        
+        inverted_dfs(current_node, current_node, first_amount, 1, reverse_path, visit, _visit, 0);        
         visit.erase(current_node);
 
-        for(unordered_map<uint, vector<vector<uint>>>::iterator it = _visit.begin() ; it != _visit.end() ; it++)
+        for(unordered_map<uint, vector<IPath>>::iterator it = _visit.begin() ; it != _visit.end() ; it++)
         {
             if(it->second.size() > 1)
             {
-                sort(it->second.begin(), it->second.end(), [](const vector<uint> &_a, const vector<uint> &_b){
-                    if(_a.size() != _b.size() || _a.empty() || _b.empty()) 
-                        return _a.size() <= _b.size();
+                sort(it->second.begin(), it->second.end(), [](const IPath &_a, const IPath &_b){
+                    if(_a.size != _b.size || _a.path.empty() || _b.path.empty()) 
+                        return _a.size <= _b.size;
                     
-                    int _len = _a.size();
+                    int _len = _a.size;
                     for(int j=_len-1 ; j>=0 ; j--)
                     {
-                        if(_a[j] != _b[j])
-                            return _a[j] < _b[j];
+                        if(_a.path[j] != _b.path[j])
+                            return _a.path[j] < _b.path[j];
                     }
 
-                    return _a[0] < _b[0];
+                    return _a.path[0] < _b.path[0];
                 });
             }
         }       
@@ -409,7 +451,7 @@ void subTask(int threadId)
         vector<uint> path;
 
         path.push_back(current_node);
-        dfs(threadId, current_node, current_node, path, visit, _visit, 1, 0);
+        dfs(threadId, current_node, current_node, first_amount, path, visit, _visit, 1, 0);
         path.pop_back();
     }
 }
