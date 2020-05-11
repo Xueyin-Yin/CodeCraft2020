@@ -272,16 +272,9 @@ bool inRange(uint X, uint Y)
 {
     // 0.2 <= Y/X <= 3.0
 
-    if(X <= Y)
-    {
-        if(UINT_MAX - X < X || UINT_MAX - 2*X < X) return true;
-        return Y <= 3 * X;
-    }
-    else
-    {
-        if(UINT_MAX - Y < Y || UINT_MAX - 2*Y < Y || UINT_MAX - 3*Y < Y || UINT_MAX - 4*Y < Y) return true;
-        return X <= 5 * Y;
-    }
+    long long x = X, y = Y;
+
+    return (x <= y)? (y <= 3 * x): (x <= 5 * y);
 }
 
 void dfs(int threadId, 
@@ -316,10 +309,10 @@ void dfs(int threadId,
 
         if(current_node == root_node) first_amount = amount;
 
-        if(next_node == root_node && inRange(amount, first_amount))
+        if(next_node == root_node)
         {
             int path_length = path.size();
-            if(path_length >= 3)
+            if(path_length >= 3 && inRange(amount, first_amount))
             {
                 vector<uint> tmp_path(path);
                 ress[threadId][path_length - 3].push_back(tmp_path);
@@ -329,14 +322,11 @@ void dfs(int threadId,
         }
         else if(depth == 4 && _visit.find(next_node) != _visit.end())
         {        
-            // for(int i=0 ; i<_visit[next_node].size() ; i++)
             for(IPath &ipath: _visit[next_node])
             { 
-                // int _len = _visit[next_node][i].size() + path.size();
                 int _len = ipath.size + path.size();
                 if(3 <= _len && _len <= 7) 
                 {
-                    // q = first_amount * 1.0 / ipath.FirstAmount;
                     if(!inRange(ipath.FirstAmount, first_amount)) continue;
                     if(!inRange(amount, ipath.LastAmount)) continue;
 
