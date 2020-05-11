@@ -6,51 +6,60 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cstring>
-#include <pthread.h>
+#include <thread>
 
 using namespace std;
+using uint = unsigned int;
 
-#define INPUT_PATH "/data/test_data.txt"
-#define OUTPUT_PATH "/projects/student/result.txt"
+// If don't want to print the intermediate instructions, comments the following line out.
+#define DEBUG true
 
 #define SEPARATOR ","
-
 #define NUM_THREADS 4
 
-unordered_map<unsigned int, vector<unsigned int>> graph;
-unordered_map<unsigned int, vector<unsigned int>> _graph;
+// For testing on local dataset.
+#ifdef DEBUG
+#define INPUT_PATH "../HuaweiSet/1004812/test_data.txt"
+#define OUTPUT_PATH "explore/result.txt"
+#endif
 
+// For official dataset
+#ifndef DEBUG
+#define INPUT_PATH "/data/test_data.txt"
+#define OUTPUT_PATH "/projects/student/result.txt"
+#endif
+
+unordered_map<uint, vector<uint>> graph;
+unordered_map<uint, vector<uint>> _graph;
 int partition_size;
-
-vector<unsigned int> ids;
-
-vector<vector<vector<vector<unsigned int>>>> ress(NUM_THREADS);
-vector<vector<vector<unsigned int>>> res(5);
+vector<uint> ids;
+vector<vector<vector<vector<uint>>>> ress(NUM_THREADS);
+vector<vector<vector<uint>>> res(5);
 
 void splitString(const string& s, vector<string>& v, const string& c) {
-  string::size_type pos1, pos2;
-  pos2 = s.find(c);
-  pos1 = 0;
+    string::size_type pos1, pos2;
+    pos2 = s.find(c);
+    pos1 = 0;
 
-  while(string::npos != pos2) {
-    v.push_back(s.substr(pos1, pos2-pos1));
- 
-    pos1 = pos2 + c.size();
-    pos2 = s.find(c, pos1);
-  }
+    while(string::npos != pos2) {
+        v.push_back(s.substr(pos1, pos2-pos1));
 
-  if(pos1 != s.length())
-    v.push_back(s.substr(pos1));
+        pos1 = pos2 + c.size();
+        pos2 = s.find(c, pos1);
+    }
+
+    if(pos1 != s.length())
+        v.push_back(s.substr(pos1));
 }
 
-unsigned int strtoui(string str)
+uint strtoui(string str)
 {
-	unsigned int result(0);
+	uint result(0);
 	for (int i = str.size()-1;i >= 0;i--) {
-		unsigned int temp(0),k = str.size() - i - 1;
+		uint temp(0),k = str.size() - i - 1;
 
-		if (isdigit(str[i])) {
-
+		if ('0' <= str[i] && str[i] <= '9') 
+        {
 			temp = str[i] - '0';
 			while (k--)
 				temp *= 10;
@@ -63,29 +72,32 @@ unsigned int strtoui(string str)
 }
 
 void initRess() {
-
     for (int i = 0; i < NUM_THREADS; i++) {
-        ress[i].push_back(vector<vector<unsigned int>> ());
-        ress[i].push_back(vector<vector<unsigned int>> ());
-        ress[i].push_back(vector<vector<unsigned int>> ());
-        ress[i].push_back(vector<vector<unsigned int>> ());
-        ress[i].push_back(vector<vector<unsigned int>> ());
+        ress[i].push_back(vector<vector<uint>> ());
+        ress[i].push_back(vector<vector<uint>> ());
+        ress[i].push_back(vector<vector<uint>> ());
+        ress[i].push_back(vector<vector<uint>> ());
+        ress[i].push_back(vector<vector<uint>> ());
     }
 }
 
 int buildGraph() {
-    std::string line;
-    unordered_set<unsigned int> pts;
+    string line;
+    unordered_set<uint> pts;
     ifstream fin(INPUT_PATH, ios::in | ios::binary);
+
+#ifdef DEBUG
+    cout << "Begin building graph." << endl; 
+#endif
 
     if (!fin.is_open()) {
         cout << "Cannot open this file" << endl;
         return -1;
     } 
 
-    vector<std::string> temp; 
-    unsigned int src;
-    unsigned int dest;
+    vector<string> temp; 
+    uint src;
+    uint dest;
 
     while (getline(fin, line)) {
         temp.clear();
@@ -95,14 +107,12 @@ int buildGraph() {
         dest = strtoui(temp[1]);
 
         graph[src].push_back(dest);
-  
         _graph[dest].push_back(src);
 
         pts.insert(src);
         pts.insert(dest);
 
     }
-
 
     ids.assign(pts.begin(), pts.end());
     sort(ids.begin(), ids.end());
@@ -122,14 +132,17 @@ int buildGraph() {
 
     fin.close();
 
-    return 0;
+#ifdef DEBUG
+    cout << "Finished building graph." << endl;
+#endif
 
+    return 0;
 }
 
-vector<unsigned int> comparePath(int lenIdx, int *indexs)
+vector<uint> comparePath(int lenIdx, int *indexs)
 {
     vector<int*> ptrs;
-    vector<vector<unsigned int>*> ptrarray;
+    vector<vector<uint>*> ptrarray;
 
     for (int i = 0; i < NUM_THREADS; i++) {
         if (indexs[i] < ress[i][lenIdx].size()) {
@@ -139,19 +152,19 @@ vector<unsigned int> comparePath(int lenIdx, int *indexs)
     }
 
     int *ptr = ptrs[0];
-    vector<unsigned int>* arr = ptrarray[0];
-    int N = arr->size();
+    vector<uint>* return_array = ptrarray[0];
+    int N = return_array->size();
     for(int idx=1 ; idx<ptrarray.size() ; idx++)
     {
         for(int sizei=0 ; sizei < N ; sizei++)
         {
-            if(ptrarray[idx]->at(sizei) < arr->at(sizei))
+            if(ptrarray[idx]->at(sizei) < return_array->at(sizei))
             {
-                arr = ptrarray[idx];
+                return_array = ptrarray[idx];
                 ptr = ptrs[idx];
                 break;
             }
-            else if(ptrarray[idx]->at(sizei) > arr->at(sizei))
+            else if(ptrarray[idx]->at(sizei) > return_array->at(sizei))
             {
                 break;
             }
@@ -159,12 +172,16 @@ vector<unsigned int> comparePath(int lenIdx, int *indexs)
     }
 
     *ptr = *ptr + 1;
-    return *arr;
+    return *return_array;
 }
 
 void mergeResults()
 {
     int indexs[NUM_THREADS];
+
+#ifdef DEBUG
+    int _NUM_LINE = 0;
+#endif
 
     for(int len=3 ; len<8 ; len++)
     {
@@ -183,14 +200,26 @@ void mergeResults()
 
             if (count == NUM_THREADS) break;
 
-            vector<unsigned int> smallestPath = comparePath(lenIdx, indexs);
+            vector<uint> smallestPath = comparePath(lenIdx, indexs);
             res[lenIdx].push_back(smallestPath);
+#ifdef DEBUG
+            _NUM_LINE++;
+#endif
         }
     }
+
+#ifdef DEBUG
+    cout << "Finished merging results from " << NUM_THREADS << " threads." << endl;
+    cout << "Found " << _NUM_LINE << " cycles." << endl;
+#endif
 }
 
 int writeResult() {
     ofstream fout(OUTPUT_PATH, ios::out | ios::binary);
+
+#ifdef DEBUG
+    cout << "Begin writing results into file." << endl;
+#endif
 
     if (fout.fail()) {
         cout << "Cannot output to this file" << endl;
@@ -214,47 +243,76 @@ int writeResult() {
 
     fout.close();
 
+#ifdef DEBUG
+    cout << "Writing successfully!" << endl;
+#endif
+
     return 0;
 }
 
-void dfs(int threadId, unsigned int current_node, unsigned int root_node, 
-         vector<unsigned int>& path,
-         unordered_set<unsigned int>& visit, unordered_map<unsigned int, int>& _visit, int depth)
+void dfs(int threadId, 
+         uint current_node, 
+         uint root_node, 
+         vector<uint>& path,
+         unordered_set<uint>& visit, 
+         unordered_map<uint, vector<vector<uint>>>& _visit, 
+         int depth)
 {
-    if (graph.find(current_node) == graph.end()) {
+    if (graph.find(current_node) == graph.end() || depth > 4) {
         return;
     }    
 
-    for(int i=0 ; i<graph[current_node].size() ; i++)
+    for(uint next_node: graph[current_node])
     {
-        unsigned int next_node = graph[current_node][i];
-        if(next_node <= root_node)
-        {
-            continue;
-        }
-        if((_visit.find(next_node) != _visit.end() && _visit[next_node] == -2) && (visit.find(next_node) == visit.end()))
-        {
-            path.push_back(next_node);
-            int path_length = path.size();
-            if(path_length > 2)
-            {
-                vector<unsigned int> temp(path);
-                ress[threadId][path_length - 3].push_back(temp);
-            }
-            path.pop_back();
-        }
-        if((visit.find(next_node) != visit.end())) {
-            continue;
-        }
-        if (depth > 3 && (_visit.find(next_node) == _visit.end() || (_visit[next_node] != root_node && _visit[next_node] != -2)))
-        {
-            continue;
-        }
-        if(path.size() == 6 || next_node == root_node)
+        // If next_node is smaller than root_node, that means next_node has already been considered before, skip.
+        // If next_node has already been visited in current path, skip.
+        if(next_node < root_node || (next_node != root_node && visit.find(next_node) != visit.end()))
         {
             continue;
         }
 
+        if(next_node == root_node)
+        {
+            int path_length = path.size();
+            if(path_length >= 3)
+            {
+                vector<uint> tmp_path(path);
+                ress[threadId][path_length - 3].push_back(tmp_path);
+            }
+
+            continue;
+        }
+        else if(depth == 4 && _visit.find(next_node) != _visit.end())
+        {        
+            for(int i=0 ; i<_visit[next_node].size() ; i++)
+            { 
+                int _len = _visit[next_node][i].size() + path.size();
+                if(3 <= _len && _len <= 7) 
+                {
+                    vector<uint> tmp_path(path);
+                    bool nodeVisited = false;
+                    for(int j=_visit[next_node][i].size()-1, k=0 ; j>=0 ; j--, k++)
+                    {
+                        uint _node = _visit[next_node][i][j];
+                        if(visit.find(_node) != visit.end())
+                        {
+                            nodeVisited = true;
+                            break;
+                        }
+
+                        tmp_path.push_back(_node);
+                    }
+
+                    if(nodeVisited) continue;
+
+                    int path_length = tmp_path.size();
+                    ress[threadId][path_length - 3].push_back(tmp_path);
+                }
+            } 
+        }
+
+        if(depth >= 4) continue;
+        
         visit.insert(next_node);
         path.push_back(next_node); 
         dfs(threadId, next_node, root_node, path, visit, _visit, depth + 1);
@@ -263,84 +321,101 @@ void dfs(int threadId, unsigned int current_node, unsigned int root_node,
     }
 }
 
-void dfs1(unsigned int current_node, unsigned int root_node, int length, 
-            unordered_set<unsigned int> &visit,
-            unordered_map<unsigned int, int> &_visit)
+void inverted_dfs(uint current_node, uint root_node, int length, 
+            vector<uint>& path,
+            unordered_set<uint> &visit,
+            unordered_map<uint, vector<vector<uint>>> &_visit)
 {
     if (_graph.find(current_node) == _graph.end()) {
         return;
     }
     
-    for(auto next_node : _graph[current_node])
+    for(uint next_node : _graph[current_node])
     {
-        
         if(next_node < root_node || visit.find(next_node) != visit.end())
         {
             continue;
         }
 
-        _visit[next_node] = root_node;
+        path.push_back(next_node);
+        _visit[next_node].push_back(path);
+        
         if(length == 3)
+        {
+            path.pop_back();
             continue;
+        }
 
         visit.insert(next_node);
-        dfs1(next_node, root_node, length + 1, visit, _visit);
+        inverted_dfs(next_node, root_node, length + 1, path, visit, _visit);
         visit.erase(next_node);
+        path.pop_back();
     }
 }
 
-void *subTask(void *pid) {
+void subTask(int threadId)
+{
+    int start = threadId * partition_size;
+    int end = (threadId + 1) * partition_size;
 
-    int start = *((int *)pid);
-    int threadId = start;
-    int end = (start + 1) * partition_size;
+    for (int i = start; i < ((end <= ids.size()) ? end : ids.size()); i++) {
+        uint current_node = ids[i];
 
-    for (int i = start * partition_size; i < ((end <= ids.size()) ? end : ids.size()); i++) {
-        unsigned int current_node = ids[i];
+        unordered_set<uint> visit; 
+        unordered_map<uint, vector<vector<uint>>> _visit;
+        vector<uint> reverse_path;
 
-        unordered_set<unsigned int> visit; 
-        unordered_map<unsigned int, int> _visit;
-        vector<unsigned int> path;
+        visit.insert(current_node);
+        inverted_dfs(current_node, current_node, 1, reverse_path, visit, _visit);        
+        visit.erase(current_node);
 
-        dfs1(current_node, current_node, 1, visit, _visit);
-
-        for(int j=0 ; j<_graph[current_node].size() ; j++)
+        for(unordered_map<uint, vector<vector<uint>>>::iterator it = _visit.begin() ; it != _visit.end() ; it++)
         {
-            _visit[_graph[current_node][j]] = -2;
-        }
+            if(it->second.size() > 1)
+            {
+                sort(it->second.begin(), it->second.end(), [](const vector<uint> &_a, const vector<uint> &_b){
+                    if(_a.size() != _b.size() || _a.empty() || _b.empty()) 
+                        return _a.size() <= _b.size();
+                    
+                    int _len = _a.size();
+                    for(int j=_len-1 ; j>=0 ; j--)
+                    {
+                        if(_a[j] != _b[j])
+                            return _a[j] < _b[j];
+                    }
+
+                    return _a[0] < _b[0];
+                });
+            }
+        }       
+
+        vector<uint> path;
 
         path.push_back(current_node);
         dfs(threadId, current_node, current_node, path, visit, _visit, 1);
         path.pop_back();
-
-        for(int j=0 ; j<_graph[current_node].size() ; j++)
-        {
-            _visit[_graph[current_node][j]] = current_node;
-        }
     }
-
-    free(pid);
-    pthread_exit((void *) NULL);
 }
 
 void parallelDFS() {
-    int *pid;
-    pthread_t *ths = (pthread_t*)malloc(sizeof(pthread_t) * NUM_THREADS);
+#ifdef DEBUG
+    cout << "Begin parallel DFS." << endl;
+#endif
 
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pid = (int *) malloc (sizeof(int));
-        *pid = i;
-        if (pthread_create(&ths[i], NULL, subTask, (void *) pid) != 0) {
-            perror("Thread create");
-        }
+    vector<thread> ths;
+    for(int i=0 ; i < NUM_THREADS ; i++)
+    {
+        ths.push_back(thread(subTask, i));
     }
 
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (pthread_join(ths[i], NULL) != 0) {
-            perror("Thread join");
-        }
+    for(int i=0 ; i < NUM_THREADS ; i++)
+    {
+        ths[i].join();
     }
-    if (ths != NULL) free(ths);
+
+#ifdef DEBUG
+    cout << "Parallel job finished." << endl;
+#endif
 }
 
 
