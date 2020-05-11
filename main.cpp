@@ -12,7 +12,7 @@ using namespace std;
 using uint = unsigned int;
 
 // If don't want to print the intermediate instructions, comments the following line out.
-#define DEBUG true
+// #define DEBUG true
 
 #define SEPARATOR ","
 #define NUM_THREADS 4
@@ -29,8 +29,8 @@ using uint = unsigned int;
 #define OUTPUT_PATH "/projects/student/result.txt"
 #endif
 
-unordered_map<uint, vector<uint>> graph;
-unordered_map<uint, vector<uint>> _graph;
+unordered_map<uint, vector<pair<uint, uint>>> graph;
+unordered_map<uint, vector<pair<uint, uint>>> _graph;
 int partition_size;
 vector<uint> ids;
 vector<vector<vector<vector<uint>>>> ress(NUM_THREADS);
@@ -98,6 +98,7 @@ int buildGraph() {
     vector<string> temp; 
     uint src;
     uint dest;
+    uint amount;
 
     while (getline(fin, line)) {
         temp.clear();
@@ -105,9 +106,10 @@ int buildGraph() {
         splitString(line, temp, SEPARATOR);
         src = strtoui(temp[0]);
         dest = strtoui(temp[1]);
+        amount = strtoui(temp[2]);
 
-        graph[src].push_back(dest);
-        _graph[dest].push_back(src);
+        graph[src].push_back({dest, amount});
+        _graph[dest].push_back({src, amount});
 
         pts.insert(src);
         pts.insert(dest);
@@ -256,20 +258,29 @@ void dfs(int threadId,
          vector<uint>& path,
          unordered_set<uint>& visit, 
          unordered_map<uint, vector<vector<uint>>>& _visit, 
-         int depth)
+         int depth, 
+         uint pre_amount)
 {
     if (graph.find(current_node) == graph.end() || depth > 4) {
         return;
     }    
 
-    for(uint next_node: graph[current_node])
+    for(pair<uint, uint> next_edge: graph[current_node])
     {
+        uint next_node = next_edge.first;
+        uint amount = next_edge.second;
         // If next_node is smaller than root_node, that means next_node has already been considered before, skip.
         // If next_node has already been visited in current path, skip.
+
         if(next_node < root_node || (next_node != root_node && visit.find(next_node) != visit.end()))
         {
             continue;
         }
+
+        float q = amount * 1.0 / pre_amount;
+        if (current_node != root_node && (q < 0.2 || q > 3.0)) {
+            continue;
+        }       
 
         if(next_node == root_node)
         {
@@ -315,7 +326,7 @@ void dfs(int threadId,
         
         visit.insert(next_node);
         path.push_back(next_node); 
-        dfs(threadId, next_node, root_node, path, visit, _visit, depth + 1);
+        dfs(threadId, next_node, root_node, path, visit, _visit, depth + 1, amount);
         path.pop_back();
         visit.erase(next_node);
     }
@@ -324,16 +335,26 @@ void dfs(int threadId,
 void inverted_dfs(uint current_node, uint root_node, int length, 
             vector<uint>& path,
             unordered_set<uint> &visit,
-            unordered_map<uint, vector<vector<uint>>> &_visit)
+            unordered_map<uint, vector<vector<uint>>> &_visit, 
+            uint pre_amount)
 {
     if (_graph.find(current_node) == _graph.end()) {
         return;
     }
     
-    for(uint next_node : _graph[current_node])
+    for(pair<uint, uint> next_edge : _graph[current_node])
     {
+        uint next_node = next_edge.first;
+        uint amount = next_edge.second;
+
         if(next_node < root_node || visit.find(next_node) != visit.end())
         {
+            continue;
+        }
+
+        float q = pre_amount * 1.0 / amount;
+
+        if (current_node != root_node && (q < 0.2 || q > 3.0)) {
             continue;
         }
 
@@ -347,7 +368,7 @@ void inverted_dfs(uint current_node, uint root_node, int length,
         }
 
         visit.insert(next_node);
-        inverted_dfs(next_node, root_node, length + 1, path, visit, _visit);
+        inverted_dfs(next_node, root_node, length + 1, path, visit, _visit, amount);
         visit.erase(next_node);
         path.pop_back();
     }
@@ -366,7 +387,7 @@ void subTask(int threadId)
         vector<uint> reverse_path;
 
         visit.insert(current_node);
-        inverted_dfs(current_node, current_node, 1, reverse_path, visit, _visit);        
+        inverted_dfs(current_node, current_node, 1, reverse_path, visit, _visit, 0);        
         visit.erase(current_node);
 
         for(unordered_map<uint, vector<vector<uint>>>::iterator it = _visit.begin() ; it != _visit.end() ; it++)
@@ -392,7 +413,7 @@ void subTask(int threadId)
         vector<uint> path;
 
         path.push_back(current_node);
-        dfs(threadId, current_node, current_node, path, visit, _visit, 1);
+        dfs(threadId, current_node, current_node, path, visit, _visit, 1, 0);
         path.pop_back();
     }
 }
