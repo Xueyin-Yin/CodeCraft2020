@@ -13,15 +13,17 @@ using namespace std;
 
 #define SEPARATOR ","
 
-unordered_map<unsigned int, vector<unsigned int>> graph;
-unordered_map<unsigned int, vector<unsigned int>> _graph;
-unordered_map<unsigned int, int> visit;
-unordered_map<unsigned int, int> _visit;
+using uint = unsigned int;
 
-vector<unsigned int> ids;
+unordered_map<uint, vector<pair<uint, uint>>> graph;
+unordered_map<uint, vector<pair<uint, uint>>> _graph;
+unordered_map<uint, int> visit;
+unordered_map<uint, int> _visit;
 
-vector<unsigned int> path;
-vector<vector<vector<unsigned int>>> res(5);
+vector<uint> ids;
+
+vector<uint> path;
+vector<vector<vector<uint>>> res(5);
 
 void splitString(const string& s, vector<string>& v, const string& c) {
   string::size_type pos1, pos2;
@@ -39,11 +41,11 @@ void splitString(const string& s, vector<string>& v, const string& c) {
     v.push_back(s.substr(pos1));
 }
 
-unsigned int strtoui(string str)
+uint strtoui(string str)
 {
-	unsigned int result(0);
+	uint result(0);
 	for (int i = str.size()-1;i >= 0;i--) {
-		unsigned int temp(0),k = str.size() - i - 1;
+		uint temp(0),k = str.size() - i - 1;
 
 		if (isdigit(str[i])) {
 
@@ -60,7 +62,7 @@ unsigned int strtoui(string str)
 
 int buildGraph() {
     std::string line;
-    unordered_set<unsigned int> pts;
+    unordered_set<uint> pts;
     ifstream fin(INPUT_PATH, ios::in | ios::binary);
 
     if (!fin.is_open()) {
@@ -69,8 +71,9 @@ int buildGraph() {
     } 
 
     vector<std::string> temp; 
-    unsigned int src;
-    unsigned int dest;
+    uint src;
+    uint dest;
+    uint amount;
 
     while (getline(fin, line)) {
         temp.clear();
@@ -78,10 +81,11 @@ int buildGraph() {
         splitString(line, temp, SEPARATOR);
         src = strtoui(temp[0]);
         dest = strtoui(temp[1]);
+        amount = strtoui(temp[2]);
 
-        graph[src].push_back(dest);
+        graph[src].push_back({dest, amount});
   
-        _graph[dest].push_back(src);
+        _graph[dest].push_back({src, amount});
 
         pts.insert(src);
         pts.insert(dest);
@@ -133,27 +137,42 @@ int writeResult() {
     return 0;
 }
 
-void dfs(unsigned int current_node, unsigned int root_node, int depth)
+void dfs(uint current_node, uint root_node, int depth, uint first_amount, uint pre_amount)
 {
     if (graph.find(current_node) == graph.end()) {
         return;
     }    
 
+    float q;
+
     for(int i=0 ; i<graph[current_node].size() ; i++)
     {
-        unsigned int next_node = graph[current_node][i];
+        auto next_edge = graph[current_node][i];
+        uint next_node = next_edge.first;
+        uint amount = next_edge.second;
+
         if(next_node <= root_node)
         {
             continue;
         }
+
+        q = amount * 1.0 / pre_amount;
+
+        if ((current_node != root_node) && (q < 0.2 || q > 3.0)) {
+        	continue;
+        }
+
         if(_visit[next_node] == -2 && visit[next_node] == 0)
         {
             path.push_back(next_node);
             int path_length = path.size();
             if(path_length > 2)
             {
-                    vector<unsigned int> temp(path);
-                    res[path_length - 3].push_back(temp);
+            	q = first_amount * 1.0 / amount;
+            	if (q >= 0.2 && q <= 3.0) {
+	                vector<uint> temp(path);
+	                res[path_length - 3].push_back(temp);            		
+            	}
             }
             path.pop_back();
         }
@@ -170,23 +189,28 @@ void dfs(unsigned int current_node, unsigned int root_node, int depth)
             continue;
         }
 
+        if (current_node == root_node) {
+        	first_amount = amount;
+        }
+
         visit[next_node] = 1;
         path.push_back(next_node); 
-        dfs(next_node, root_node, depth + 1);
+        dfs(next_node, root_node, depth + 1, first_amount, amount);
         path.pop_back();
         visit[next_node] = 0;
     }
 }
 
-void dfs1(unsigned int current_node, unsigned int root_node, int length)
+void dfs1(uint current_node, uint root_node, int length)
 {
     if (_graph.find(current_node) == _graph.end()) {
         return;
     }
     
-    for(auto next_node : _graph[current_node])
+    for(auto next_edge : _graph[current_node])
     {
-        
+        uint next_node = next_edge.first;
+
         if(next_node < root_node || visit[next_node] == 1)
         {
             continue;
@@ -206,28 +230,28 @@ int main(int argc, char* argv[]) {
 
     buildGraph();
 
-    for (unsigned int node : ids) {
+    for (uint node : ids) {
         visit[node] = 0;
         _visit[node] = -1;
     }
 
-    for(unsigned int current_node : ids)
+    for(uint current_node : ids)
     {
         dfs1(current_node, current_node, 1);
         
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
-            _visit[_graph[current_node][j]] = -2;
+            _visit[_graph[current_node][j].first] = -2;
         }
 
         path.push_back(current_node);
-        dfs(current_node, current_node, 1);
+        dfs(current_node, current_node, 1, 0, 0);
         path.pop_back();
 
 
         for(int j=0 ; j<_graph[current_node].size() ; j++)
         {
-            _visit[_graph[current_node][j]] = current_node;
+            _visit[_graph[current_node][j].first] = current_node;
         }
     }
 
