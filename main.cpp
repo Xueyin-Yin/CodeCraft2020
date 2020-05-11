@@ -14,6 +14,10 @@ using uint = unsigned int;
 // If don't want to print the intermediate instructions, comments the following line out.
 // #define DEBUG true
 
+#ifndef UINT_MAX
+    #define UINT_MAX 0xffffffff
+#endif
+
 #define SEPARATOR ","
 #define NUM_THREADS 4
 
