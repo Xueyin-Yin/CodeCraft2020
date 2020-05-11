@@ -54,16 +54,12 @@ void splitString(const string& s, vector<string>& v, const string& c) {
 
 uint strtoui(string str)
 {
-	uint result(0);
-	for (int i = str.size()-1;i >= 0;i--) {
-		uint temp(0),k = str.size() - i - 1;
-
+	uint result = 0;
+	for (int i=0 ; i<str.size() ; i++) 
+    {
 		if ('0' <= str[i] && str[i] <= '9') 
         {
-			temp = str[i] - '0';
-			while (k--)
-				temp *= 10;
-			result += temp;
+			result = result * 10 + (str[i] - '0');
 		}
 		else
 			break;
