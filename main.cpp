@@ -12,14 +12,18 @@ using namespace std;
 using uint = unsigned int;
 
 // If don't want to print the intermediate instructions, comments the following line out.
-// #define DEBUG true
+#define DEBUG true
 
 #define SEPARATOR ","
 #define NUM_THREADS 4
 
+#ifndef UINT_MAX
+#define UINT_MAX 0xffffffff
+#endif
+
 // For testing on local dataset.
 #ifdef DEBUG
-#define INPUT_PATH "../test_data.txt"
+#define INPUT_PATH "复赛/test_data.txt"
 #define OUTPUT_PATH "explore/result.txt"
 #endif
 
