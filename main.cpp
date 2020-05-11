@@ -43,9 +43,9 @@ void splitString(const string& s, vector<string>& v, const string& c) {
 
 uint strtoui(string str)
 {
-	uint result(0);
+	uint result = 0;
 
-	for (int i = 0; i < str.size() - 1; i++) {
+	for (int i = 0; i < str.size(); i++) {
 		if (isdigit(str[i])) {
 			result = result * 10 + (str[i] - '0');
 		} else {
@@ -160,7 +160,7 @@ void dfs(uint current_node, uint root_node, int depth, uint first_amount, uint p
 
         if(next_node == root_node && visit[next_node] == 0)
         {
-//            path.push_back(next_node);
+
             int path_length = path.size();
             if(path_length > 2)
             {
@@ -170,7 +170,7 @@ void dfs(uint current_node, uint root_node, int depth, uint first_amount, uint p
 	                res[path_length - 3].push_back(temp);            		
             	}
             }
-//            path.pop_back();
+
             continue;
         }
         if(visit[next_node] == 1)
@@ -181,7 +181,7 @@ void dfs(uint current_node, uint root_node, int depth, uint first_amount, uint p
         {
             continue;
         }
-        if(path.size() == 6 || next_node == root_node)
+        if(path.size() == 7 || next_node == root_node)
         {
             continue;
         }
