@@ -19,7 +19,7 @@ using uint = unsigned int;
 
 // For testing on local dataset.
 #ifdef DEBUG
-#define INPUT_PATH "../HuaweiSet/38252/test_data.txt"
+#define INPUT_PATH "../HuaweiSet/1004812/test_data.txt"
 #define OUTPUT_PATH "explore/result.txt"
 #endif
 
@@ -373,18 +373,18 @@ void subTask(int threadId)
         {
             if(it->second.size() > 1)
             {
-                sort(it->second.begin(), it->second.end(), [](const vector<uint> &a, const vector<uint> &b){
-                    if(a.size() != b.size() || a.empty() || b.empty()) 
-                        return a.size() < b.size();
+                sort(it->second.begin(), it->second.end(), [](const vector<uint> &_a, const vector<uint> &_b){
+                    if(_a.size() != _b.size() || _a.empty() || _b.empty()) 
+                        return _a.size() <= _b.size();
                     
-                    int _len = a.size();
+                    int _len = _a.size();
                     for(int j=_len-1 ; j>=0 ; j--)
                     {
-                        if(a[j] != b[j])
-                            return a[j] < b[j];
+                        if(_a[j] != _b[j])
+                            return _a[j] < _b[j];
                     }
 
-                    return true;
+                    return _a[0] < _b[0];
                 });
             }
         }       
