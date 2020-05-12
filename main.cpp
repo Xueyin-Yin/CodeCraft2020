@@ -58,9 +58,7 @@ void initRess() {
 
 int buildGraph() {
 
-    unordered_set<uint> pts;
-
-    char *data = NULL;
+    char *mm = NULL;
     int fd = open(INPUT_PATH, O_RDONLY);
 
     if (fd < 0) {
@@ -69,9 +67,9 @@ int buildGraph() {
     }
 
     long size = lseek(fd, 0, SEEK_END);
-    data = (char *)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+    mm = (char *)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
 
-    if (data == MAP_FAILED) {
+    if (mm == MAP_FAILED) {
         cout << "Map failed" << endl;
         return -1;
     } 
@@ -90,18 +88,18 @@ int buildGraph() {
         dest = 0;
         amount = 0;
 
-        while (data[ptr] != ',') {
-            src = src * 10 + (data[ptr] - '0');
+        while (mm[ptr] != ',') {
+            src = src * 10 + (mm[ptr] - '0');
             ptr++;
         }
         ptr++;
-        while (data[ptr] != ',') {
-            dest = dest * 10 + (data[ptr] - '0');
+        while (mm[ptr] != ',') {
+            dest = dest * 10 + (mm[ptr] - '0');
             ptr++;
         }
         ptr++;
-        while(data[ptr] != '\n') {
-            amount = amount * 10 + (data[ptr] - '0');
+        while(mm[ptr] != '\n') {
+            amount = amount * 10 + (mm[ptr] - '0');
             ptr++;
         }
 
@@ -124,7 +122,7 @@ int buildGraph() {
     {
         uint from = indexTable[p[0]];
         uint to = indexTable[p[1]];
-        uint amount = p[2];
+        amount = p[2];
 
         while(graph.size() <= from) 
             graph.push_back({});
@@ -160,7 +158,7 @@ int buildGraph() {
 	int remainer = NodeAmount % NUM_THREADS;
 	partition_size = (remainer == 0) ? divisor : divisor + 1;
 
-    munmap(data, size);
+    munmap(mm, size);
     close(fd);
     return 0;
 }
