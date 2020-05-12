@@ -12,18 +12,14 @@ using namespace std;
 using uint = unsigned int;
 
 // If don't want to print the intermediate instructions, comments the following line out.
-#define DEBUG true
-
-#ifndef UINT_MAX
-    #define UINT_MAX 0xffffffff
-#endif
-
-#define SEPARATOR ","
-#define NUM_THREADS 4
+// #define DEBUG true
 
 #ifndef UINT_MAX
 #define UINT_MAX 0xffffffff
 #endif
+
+#define SEPARATOR ","
+#define NUM_THREADS 4
 
 // For testing on local dataset.
 #ifdef DEBUG
