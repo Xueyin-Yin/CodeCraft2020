@@ -27,7 +27,8 @@ using uint = unsigned int;
 
 // For testing on local dataset.
 #ifdef DEBUG
-#define INPUT_PATH "复赛/test_data.txt"
+// #define INPUT_PATH "复赛/test_data.txt"
+#define INPUT_PATH "../HuaweiSet/1004812/test_data.txt"
 #define OUTPUT_PATH "explore/result.txt"
 #endif
 
@@ -37,10 +38,12 @@ using uint = unsigned int;
 #define OUTPUT_PATH "/projects/student/result.txt"
 #endif
 
-unordered_map<uint, vector<pair<uint, uint>>> graph;
-unordered_map<uint, vector<pair<uint, uint>>> _graph;
+vector<vector<pair<uint, uint>>> graph;
+vector<vector<pair<uint, uint>>> _graph;
+unordered_map<uint, uint> indexTable;
 int partition_size;
 vector<uint> ids;
+uint NodeAmount = 0;
 vector<vector<vector<vector<uint>>>> ress(NUM_THREADS);
 vector<vector<vector<uint>>> res(5);
 
@@ -87,7 +90,6 @@ void initRess() {
 
 int buildGraph() {
     string line;
-    unordered_set<uint> pts;
     ifstream fin(INPUT_PATH, ios::in | ios::binary);
 
 #ifdef DEBUG
@@ -100,6 +102,8 @@ int buildGraph() {
     } 
 
     vector<string> temp; 
+    unordered_set<uint> pts;
+    vector<vector<uint>> data;
     uint src;
     uint dest;
     uint amount;
@@ -112,28 +116,57 @@ int buildGraph() {
         dest = strtoui(temp[1]);
         amount = strtoui(temp[2]);
 
-        graph[src].push_back({dest, amount});
-        _graph[dest].push_back({src, amount});
-
+        data.push_back({src, dest, amount});
         pts.insert(src);
         pts.insert(dest);
-
     }
 
     ids.assign(pts.begin(), pts.end());
     sort(ids.begin(), ids.end());
 
-    for (auto pt = graph.begin(); pt != graph.end(); pt++) {
-        sort(pt->second.begin(), pt->second.end());
+    for(uint i=0 ; i<ids.size() ; i++)
+    {
+        indexTable[ids[i]] = i;
     }
 
-    for (auto pt = _graph.begin(); pt != _graph.end(); pt++) {
-        sort(pt->second.begin(), pt->second.end());
-    }    
+    for(vector<uint>& p: data)
+    {
+        uint from = indexTable[p[0]];
+        uint to = indexTable[p[1]];
+        uint amount = p[2];
 
-    int num_ids = ids.size();
-	int divisor = num_ids / NUM_THREADS;
-	int remainer = num_ids % NUM_THREADS;
+        while(graph.size() <= from) 
+            graph.push_back({});
+
+        graph[from].push_back({to, amount});
+
+        while(_graph.size() <= to) 
+            _graph.push_back({});
+        
+        _graph[to].push_back({from, amount});
+    }
+
+    // for (auto pt = graph.begin(); pt != graph.end(); pt++) {
+    //     sort(pt->second.begin(), pt->second.end());
+    // }
+
+    for(int i=0 ; i<graph.size() ; i++)
+    {
+        sort(graph[i].begin(), graph[i].end());
+    }
+
+    // for (auto pt = _graph.begin(); pt != _graph.end(); pt++) {
+    //     sort(pt->second.begin(), pt->second.end());
+    // }    
+
+    for(int i=0 ; i<_graph.size() ; i++)
+    {
+        sort(_graph[i].begin(), _graph[i].end());
+    }
+
+    NodeAmount = ids.size();
+	int divisor = NodeAmount / NUM_THREADS;
+	int remainer = NodeAmount % NUM_THREADS;
 	partition_size = (remainer == 0) ? divisor : divisor + 1;
 
     fin.close();
@@ -241,9 +274,9 @@ int writeResult() {
     for (auto iter : res) {
         for (auto iter1 : iter) {
             for (int i = 0; i < iter1.size() - 1; i++) {
-                fout << iter1[i] << ",";
+                fout << ids[iter1[i]] << ",";
             }
-            if (iter1.size() > 0) fout << iter1[iter1.size() - 1] << endl;
+            if (iter1.size() > 0) fout << ids[iter1.back()] << endl;
         }
     }
 
@@ -286,12 +319,14 @@ void dfs(int threadId,
          uint root_node, 
          uint first_amount,
          vector<uint>& path,
-         unordered_set<uint>& visit, 
-         unordered_map<uint, vector<IPath>>& _visit, 
+         vector<bool>& visit, 
+         vector<vector<IPath>>& _visit, 
          int depth, 
          uint pre_amount)
 {
-    if (graph.find(current_node) == graph.end() || depth > 4) {
+    // if (graph.find(current_node) == graph.end() || depth > 4) 
+    if(current_node >= graph.size() || depth > 4)
+    {
         return;
     }    
 
@@ -302,7 +337,7 @@ void dfs(int threadId,
 
         // If next_node is smaller than root_node, that means next_node has already been considered before, skip.
         // If next_node has already been visited in current path, skip.
-        if(next_node < root_node || (next_node != root_node && visit.find(next_node) != visit.end()))
+        if(next_node < root_node || (next_node != root_node && visit[next_node]))
         {
             continue;
         }
@@ -324,7 +359,8 @@ void dfs(int threadId,
 
             continue;
         }
-        else if(depth == 4 && _visit.find(next_node) != _visit.end())
+        // else if(depth == 4 && _visit.find(next_node) != _visit.end())
+        else if(depth == 4)
         {        
             for(IPath &ipath: _visit[next_node])
             { 
@@ -340,7 +376,8 @@ void dfs(int threadId,
                     {
                         uint _node = ipath.path[j];
 
-                        if(visit.find(_node) != visit.end())
+                        // if(visit.find(_node) != visit.end())
+                        if(visit[_node])
                         {
                             nodeVisited = true;
                             break;
@@ -359,21 +396,25 @@ void dfs(int threadId,
 
         if(depth >= 4) continue;
         
-        visit.insert(next_node);
+        // visit.insert(next_node);
+        visit[next_node] = true;
         path.push_back(next_node); 
         dfs(threadId, next_node, root_node, first_amount, path, visit, _visit, depth + 1, amount);
         path.pop_back();
-        visit.erase(next_node);
+        // visit.erase(next_node);
+        visit[next_node] = false;
     }
 }
 
 void inverted_dfs(uint current_node, uint root_node, uint first_amount,int length,
             vector<uint>& path,
-            unordered_set<uint> &visit,
-            unordered_map<uint, vector<IPath>> &_visit, 
+            vector<bool> &visit,
+            vector<vector<IPath>> &_visit, 
             uint pre_amount)
 {
-    if (_graph.find(current_node) == _graph.end()) {
+    // if (_graph.find(current_node) == _graph.end()) 
+    if(current_node >= _graph.size())
+    {
         return;
     }
     
@@ -382,7 +423,7 @@ void inverted_dfs(uint current_node, uint root_node, uint first_amount,int lengt
         uint next_node = next_edge.first;
         uint amount = next_edge.second;
 
-        if(next_node < root_node || visit.find(next_node) != visit.end())
+        if(next_node < root_node || visit[next_node])
         {
             continue;
         }
@@ -402,9 +443,11 @@ void inverted_dfs(uint current_node, uint root_node, uint first_amount,int lengt
             continue;
         }
 
-        visit.insert(next_node);
+        // visit.insert(next_node);
+        visit[next_node] = true;
         inverted_dfs(next_node, root_node, first_amount, length + 1, path, visit, _visit, amount);
-        visit.erase(next_node);
+        // visit.erase(next_node);
+        visit[next_node] = false;
         path.pop_back();
     }
 }
@@ -414,23 +457,28 @@ void subTask(int threadId)
     int start = threadId * partition_size;
     int end = (threadId + 1) * partition_size;
 
-    for (int i = start; i < ((end <= ids.size()) ? end : ids.size()); i++) {
-        uint current_node = ids[i];
+    for (uint i = start; i < ((end <= NodeAmount) ? end : NodeAmount); i++) {
+        uint current_node = i;
 
-        unordered_set<uint> visit; 
-        unordered_map<uint, vector<IPath>> _visit;
+        // unordered_set<uint> visit; 
+        vector<bool> visit(NodeAmount);
+        vector<vector<IPath>> _visit(NodeAmount);
         vector<uint> reverse_path;
         uint first_amount = 0;
 
-        visit.insert(current_node);
+        // visit.insert(current_node);
+        visit[current_node] = true;
         inverted_dfs(current_node, current_node, first_amount, 1, reverse_path, visit, _visit, 0);        
-        visit.erase(current_node);
+        // visit.erase(current_node);
+        visit[current_node] = false;
 
-        for(unordered_map<uint, vector<IPath>>::iterator it = _visit.begin() ; it != _visit.end() ; it++)
+        // for(unordered_map<uint, vector<IPath>>::iterator it = _visit.begin() ; it != _visit.end() ; it++)
+        for(int j=0 ; j<_visit.size() ; j++)
         {
-            if(it->second.size() > 1)
+            // if(it->second.size() > 1)
+            if(_visit[j].size() > 1)
             {
-                sort(it->second.begin(), it->second.end(), [](const IPath &_a, const IPath &_b){
+                sort(_visit[j].begin(), _visit[j].end(), [](const IPath &_a, const IPath &_b){
                     if(_a.size != _b.size || _a.path.empty() || _b.path.empty()) 
                         return _a.size <= _b.size;
                     
