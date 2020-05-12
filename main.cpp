@@ -17,7 +17,7 @@ using namespace std;
 using uint = unsigned int;
 
 // If don't want to print the intermediate instructions, comments the following line out.
-#define DEBUG true
+//#define DEBUG true
 
 #ifndef UINT_MAX
 #define UINT_MAX 0xffffffff
@@ -59,14 +59,14 @@ void initRess() {
 int buildGraph() {
 
     char *mm = NULL;
-    int fd = open(INPUT_PATH, O_RDONLY);
+    int fd = open(INPUT_PATH, ios::in|ios::binary, 0666);
 
     if (fd < 0) {
         cout << "Cannot open this file" << endl;
         return -1;
     }
 
-    long size = lseek(fd, 0, SEEK_END);
+    long long size = lseek(fd, 0, SEEK_END);
     mm = (char *)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
 
     if (mm == MAP_FAILED) {
@@ -81,7 +81,7 @@ int buildGraph() {
     uint dest;
     uint amount;
 
-    long ptr = 0;
+    long long ptr = 0;
 
     while (ptr < size) {
         src = 0;
