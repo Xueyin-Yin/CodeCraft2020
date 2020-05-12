@@ -1,5 +1,4 @@
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -7,25 +6,29 @@
 #include <unordered_set>
 #include <cstring>
 #include <thread>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 using namespace std;
 using uint = unsigned int;
 
 // If don't want to print the intermediate instructions, comments the following line out.
-// #define DEBUG true
+#define DEBUG true
 
 #ifndef UINT_MAX
 #define UINT_MAX 0xffffffff
 #endif
 
-#define SEPARATOR ","
 #define NUM_THREADS 4
 
 // For testing on local dataset.
 #ifdef DEBUG
-// #define INPUT_PATH "复赛/test_data.txt"
-#define INPUT_PATH "../HuaweiSet/1004812/test_data.txt"
-#define OUTPUT_PATH "explore/result.txt"
+#define INPUT_PATH "/data/test_data.txt"
+#define OUTPUT_PATH "/projects/student/result.txt"
 #endif
 
 // For official dataset
@@ -43,37 +46,6 @@ uint NodeAmount = 0;
 vector<vector<vector<vector<uint>>>> ress(NUM_THREADS);
 vector<vector<vector<uint>>> res(5);
 
-void splitString(const string& s, vector<string>& v, const string& c) {
-    string::size_type pos1, pos2;
-    pos2 = s.find(c);
-    pos1 = 0;
-
-    while(string::npos != pos2) {
-        v.push_back(s.substr(pos1, pos2-pos1));
-
-        pos1 = pos2 + c.size();
-        pos2 = s.find(c, pos1);
-    }
-
-    if(pos1 != s.length())
-        v.push_back(s.substr(pos1));
-}
-
-uint strtoui(string str)
-{
-	uint result = 0;
-	for (int i=0 ; i<str.size() ; i++) 
-    {
-		if ('0' <= str[i] && str[i] <= '9') 
-        {
-			result = result * 10 + (str[i] - '0');
-		}
-		else
-			break;
-	}
-	return result;
-}
-
 void initRess() {
     for (int i = 0; i < NUM_THREADS; i++) {
         ress[i].push_back(vector<vector<uint>> ());
@@ -85,15 +57,22 @@ void initRess() {
 }
 
 int buildGraph() {
-    string line;
-    ifstream fin(INPUT_PATH, ios::in | ios::binary);
 
-#ifdef DEBUG
-    cout << "Begin building graph." << endl; 
-#endif
+    unordered_set<uint> pts;
 
-    if (!fin.is_open()) {
+    char *data = NULL;
+    int fd = open(INPUT_PATH, O_RDONLY);
+
+    if (fd < 0) {
         cout << "Cannot open this file" << endl;
+        return -1;
+    }
+
+    long size = lseek(fd, 0, SEEK_END);
+    data = (char *)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+    if (data == MAP_FAILED) {
+        cout << "Map failed" << endl;
         return -1;
     } 
 
@@ -104,17 +83,33 @@ int buildGraph() {
     uint dest;
     uint amount;
 
-    while (getline(fin, line)) {
-        temp.clear();
+    long ptr = 0;
 
-        splitString(line, temp, SEPARATOR);
-        src = strtoui(temp[0]);
-        dest = strtoui(temp[1]);
-        amount = strtoui(temp[2]);
+    while (ptr < size) {
+        src = 0;
+        dest = 0;
+        amount = 0;
+
+        while (data[ptr] != ',') {
+            src = src * 10 + (data[ptr] - '0');
+            ptr++;
+        }
+        ptr++;
+        while (data[ptr] != ',') {
+            dest = dest * 10 + (data[ptr] - '0');
+            ptr++;
+        }
+        ptr++;
+        while(data[ptr] != '\n') {
+            amount = amount * 10 + (data[ptr] - '0');
+            ptr++;
+        }
 
         data.push_back({src, dest, amount});
         pts.insert(src);
         pts.insert(dest);
+
+        ptr++;
     }
 
     ids.assign(pts.begin(), pts.end());
@@ -165,12 +160,8 @@ int buildGraph() {
 	int remainer = NodeAmount % NUM_THREADS;
 	partition_size = (remainer == 0) ? divisor : divisor + 1;
 
-    fin.close();
-
-#ifdef DEBUG
-    cout << "Finished building graph." << endl;
-#endif
-
+    munmap(data, size);
+    close(fd);
     return 0;
 }
 
@@ -250,37 +241,40 @@ void mergeResults()
 }
 
 int writeResult() {
-    ofstream fout(OUTPUT_PATH, ios::out | ios::binary);
+    FILE *fp = fopen(OUTPUT_PATH, "wb");
+    char buffer[34];
 
-#ifdef DEBUG
-    cout << "Begin writing results into file." << endl;
-#endif
-
-    if (fout.fail()) {
+    if (fp == NULL) {
         cout << "Cannot output to this file" << endl;
         return -1;
     }
 
-    int count = 0;
+    uint count = 0;
     for (auto iter : res) {
         count += iter.size();
     }
+    sprintf(buffer, "%u", count);
+    strcat(buffer, "\n");
+    fwrite(&buffer, 1, strlen(buffer), fp);
 
-    fout << count << endl;
     for (auto iter : res) {
         for (auto iter1 : iter) {
             for (int i = 0; i < iter1.size() - 1; i++) {
-                fout << ids[iter1[i]] << ",";
+                memset(buffer, 0, sizeof(buffer));
+                sprintf(buffer, "%u", iter1[i]);
+                strcat(buffer, ",");
+                fwrite(&buffer, 1, strlen(buffer), fp);                
             }
-            if (iter1.size() > 0) fout << ids[iter1.back()] << endl;
+            if (iter1.size() > 0) {
+                memset(buffer, 0, sizeof(buffer));
+                sprintf(buffer, "%u", iter1[iter1.size() - 1]);
+                strcat(buffer, "\n");
+                fwrite(&buffer, 1, strlen(buffer), fp);    
+            }
         }
     }
 
-    fout.close();
-
-#ifdef DEBUG
-    cout << "Writing successfully!" << endl;
-#endif
+    fclose(fp);
 
     return 0;
 }
@@ -499,9 +493,6 @@ void subTask(int threadId)
 }
 
 void parallelDFS() {
-#ifdef DEBUG
-    cout << "Begin parallel DFS." << endl;
-#endif
 
     vector<thread> ths;
     for(int i=0 ; i < NUM_THREADS ; i++)
@@ -514,14 +505,44 @@ void parallelDFS() {
         ths[i].join();
     }
 
-#ifdef DEBUG
-    cout << "Parallel job finished." << endl;
-#endif
 }
 
 
 int main(int argc, char* argv[]) {
 
+#ifdef DEBUG
+    initRess();
+
+    time_t start = {0};
+    time_t end = {0};
+
+    time(&start);
+    buildGraph();
+    time(&end);
+
+    cout << "Build Graph: " << end - start << " s" << endl;
+
+    time(&start);
+    parallelDFS();
+    time(&end);
+
+    cout << "DFS: " << end - start << " s" << endl;
+
+    time(&start);
+    mergeResults();
+    time(&end);
+
+    cout << "Merge result: " << end - start << " s" << endl;
+
+    time(&start);
+    writeResult();
+    time(&end);
+
+    cout << "Write result: " << end - start << " s" << endl;
+
+#endif
+
+#ifndef DEBUG
     initRess();
 
     buildGraph();
@@ -531,6 +552,8 @@ int main(int argc, char* argv[]) {
     mergeResults();
 
     writeResult();
+#endif
 
     return 0;
+
 }
