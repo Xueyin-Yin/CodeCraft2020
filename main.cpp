@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -6,7 +7,6 @@
 #include <unordered_set>
 #include <cstring>
 #include <thread>
-#include <sys/mman.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -17,13 +17,15 @@ using namespace std;
 using uint = unsigned int;
 
 // If don't want to print the intermediate instructions, comments the following line out.
-//#define DEBUG true
+#define DEBUG true
 
 #ifndef UINT_MAX
 #define UINT_MAX 0xffffffff
 #endif
 
 #define NUM_THREADS 4
+
+#define SEPARATOR ","
 
 // For testing on local dataset.
 #ifdef DEBUG
@@ -46,6 +48,37 @@ uint NodeAmount = 0;
 vector<vector<vector<vector<uint>>>> ress(NUM_THREADS);
 vector<vector<vector<uint>>> res(5);
 
+void splitString(const string& s, vector<string>& v, const string& c) {
+    string::size_type pos1, pos2;
+    pos2 = s.find(c);
+    pos1 = 0;
+
+    while(string::npos != pos2) {
+        v.push_back(s.substr(pos1, pos2-pos1));
+
+        pos1 = pos2 + c.size();
+        pos2 = s.find(c, pos1);
+    }
+
+    if(pos1 != s.length())
+        v.push_back(s.substr(pos1));
+}
+
+uint strtoui(string str)
+{
+	uint result = 0;
+	for (int i=0 ; i<str.size() ; i++) 
+    {
+		if ('0' <= str[i] && str[i] <= '9') 
+        {
+			result = result * 10 + (str[i] - '0');
+		}
+		else
+			break;
+	}
+	return result;
+}
+
 void initRess() {
     for (int i = 0; i < NUM_THREADS; i++) {
         ress[i].push_back(vector<vector<uint>> ());
@@ -58,19 +91,11 @@ void initRess() {
 
 int buildGraph() {
 
-    char *mm = NULL;
-    int fd = open(INPUT_PATH, ios::in|ios::binary, 0666);
+    string line;
+    ifstream fin(INPUT_PATH, ios::in | ios::binary);
 
-    if (fd < 0) {
+    if (!fin.is_open()) {
         cout << "Cannot open this file" << endl;
-        return -1;
-    }
-
-    long long size = lseek(fd, 0, SEEK_END);
-    mm = (char *)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-
-    if (mm == MAP_FAILED) {
-        cout << "Map failed" << endl;
         return -1;
     } 
 
@@ -81,33 +106,17 @@ int buildGraph() {
     uint dest;
     uint amount;
 
-    long long ptr = 0;
+    while (getline(fin, line)) {
+        temp.clear();
 
-    while (ptr < size) {
-        src = 0;
-        dest = 0;
-        amount = 0;
-
-        while (mm[ptr] != ',') {
-            src = src * 10 + (mm[ptr] - '0');
-            ptr++;
-        }
-        ptr++;
-        while (mm[ptr] != ',') {
-            dest = dest * 10 + (mm[ptr] - '0');
-            ptr++;
-        }
-        ptr++;
-        while(mm[ptr] != '\n') {
-            amount = amount * 10 + (mm[ptr] - '0');
-            ptr++;
-        }
+        splitString(line, temp, SEPARATOR);
+        src = strtoui(temp[0]);
+        dest = strtoui(temp[1]);
+        amount = strtoui(temp[2]);
 
         data.push_back({src, dest, amount});
         pts.insert(src);
         pts.insert(dest);
-
-        ptr++;
     }
 
     ids.assign(pts.begin(), pts.end());
@@ -135,18 +144,10 @@ int buildGraph() {
         _graph[to].push_back({from, amount});
     }
 
-    // for (auto pt = graph.begin(); pt != graph.end(); pt++) {
-    //     sort(pt->second.begin(), pt->second.end());
-    // }
-
     for(int i=0 ; i<graph.size() ; i++)
     {
         sort(graph[i].begin(), graph[i].end());
     }
-
-    // for (auto pt = _graph.begin(); pt != _graph.end(); pt++) {
-    //     sort(pt->second.begin(), pt->second.end());
-    // }    
 
     for(int i=0 ; i<_graph.size() ; i++)
     {
@@ -158,8 +159,7 @@ int buildGraph() {
 	int remainer = NodeAmount % NUM_THREADS;
 	partition_size = (remainer == 0) ? divisor : divisor + 1;
 
-    munmap(mm, size);
-    close(fd);
+    fin.close();
     return 0;
 }
 
@@ -239,8 +239,7 @@ void mergeResults()
 }
 
 int writeResult() {
-    FILE *fp = fopen(OUTPUT_PATH, "wb");
-    char buffer[34];
+    FILE *fp = fopen(OUTPUT_PATH, "wt");
 
     if (fp == NULL) {
         cout << "Cannot output to this file" << endl;
@@ -251,23 +250,16 @@ int writeResult() {
     for (auto iter : res) {
         count += iter.size();
     }
-    sprintf(buffer, "%u", count);
-    strcat(buffer, "\n");
-    fwrite(&buffer, 1, strlen(buffer), fp);
+
+    fprintf(fp, "%u\n", count);
 
     for (auto iter : res) {
         for (auto iter1 : iter) {
             for (int i = 0; i < iter1.size() - 1; i++) {
-                memset(buffer, 0, sizeof(buffer));
-                sprintf(buffer, "%u", iter1[i]);
-                strcat(buffer, ",");
-                fwrite(&buffer, 1, strlen(buffer), fp);                
+                fprintf(fp, "%u,", iter1[i]);               
             }
             if (iter1.size() > 0) {
-                memset(buffer, 0, sizeof(buffer));
-                sprintf(buffer, "%u", iter1[iter1.size() - 1]);
-                strcat(buffer, "\n");
-                fwrite(&buffer, 1, strlen(buffer), fp);    
+                fprintf(fp, "%u\n", iter1[iter1.size() - 1]);
             }
         }
     }
